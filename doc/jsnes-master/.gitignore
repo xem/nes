@@ -1,0 +1,6 @@
+._*
+.DS_Store
+/dist
+/local-roms
+/node_modules
+/tmp

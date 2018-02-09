@@ -1,0 +1,274 @@
+﻿<canvas id=a width=320 height=240 style=background:#fff>
+<script>
+
+// ===================
+//  Mini NES emulator
+// ===================
+
+// (The goal is to play a Mapper 0 game like SMB, with no sound, with the fewest JS code possible)
+
+
+
+// --------
+//  Memory
+// --------
+
+// Memory map:
+
+// Address     | Size  | Device
+// ------------|-------|------------------------
+// $0000-$07FF | $0800 | 2KB internal RAM
+// $0800-$0FFF | $0800 | mirror of $0000-$07FF
+// $1000-$17FF | $0800 | mirror of $0000-$07FF
+// $1800-$1FFF | $0800 | mirror of $0000-$07FF
+// $2000-$2007 | $0008 | NES PPU registers
+// $2008-$3FFF | $1FF8 | Mirrors of $2000-2007 (repeat every 8 bytes)
+// $4000-$4017 | $0018 | NES APU and I/O registers
+// $4018-$401F | $0008 | APU and I/O functionality normally disabled
+// $4020-$FFFF | $BFE0 | Cartridge space:
+//                     | - PRG ROM ($8000-$FFFF)
+//                     |  (32kb: .nes file bytes $0010-$800F)
+//                     | - CHR ROM ($6000-$7FFF)
+//                     |   or PRG RAM or VROM
+//                     |  (8kb: .nes file bytes $8010-$A00F)
+//                     | Mapper registers:
+//                     | - NMI vector ($FFFA-$FFFB)
+//                     | - Reset vector ($FFFC-$FFFD)
+//                     | - IRQ/BRK vector ($FFFE-$FFFF)
+
+mem = [];
+
+mem_access = function(addr, value){
+
+  
+  if(typeof value == "undefined"){
+    return mem[addr];
+  }
+}
+
+
+// -----
+//  CPU
+// -----
+
+// Program counter
+PC = 0xC000;
+
+// Accumulator, Index X, Index Y, Stack Pointer
+A = X = Y = S = 0;
+
+// Status flags (bits 7-0 : NV--DIZC)
+P = 0b0000000;
+
+// Reset
+reset = true;
+
+// Non-maskable interrupt disable
+nmi = false;
+
+// Edge state comparator
+
+nmi_edge_detected = false;
+
+// Current interrupt state
+intr = false;
+
+// Prepare next CPU instruction and execute it
+prepare_op = function(){
+
+  // Update the current state of non-maskable interrupts
+  nmi_now = nmi;
+  
+  // Read in the next operation based on the program counter. Iterate PC for the next cycle.
+  op = mem[PC++];
+  
+
+  // If reset is set, override the op code with instruction 0x101
+  if(reset){
+    op = 0x101;
+  }
+  
+  // Overrides next op code if a non-maskable interrupt is detected. This is commonly associated with vertical blanking in the PPU.
+  // If this the first nmi cycle, then nmi_edge_detected is set.
+  else if(nmi_now && !nmi_edge_detected){
+    op = 0x100;
+    nmi_edge_detected = true;
+  }
+  
+  // Regular interrupts also override the op code
+  else if(intr && !P.I){
+    op = 0x102;
+  }
+  
+  // If no NMI is active unset the nmi_edge flag
+  if(!nmi_now){
+    nmi_edge_detected = false;
+  }
+  
+  // Call the function pointed to by 'op' from the function table constructed above.
+  //CPU_Ins[op]();
+  ins(op);
+  
+  // Unset the reset flag in preparation for the next cycle. There is currently no way for reset to be asserted after the first cycle. Normally the physical NES reset button would trigger this. Now, CPU is initialized with reset asserted.
+  reset = false;
+};
+
+
+// Fetch op'th item from a bitstring encoded in a data-specific variant of base64, where each character transmits 8 bits of information rather than 6.
+T = function(s, code){
+
+  var o8 = op / 8;
+  var o8m = 1 << (op % 8);
+  var i = o8m & (
+        s[o8] > 90
+        ? (130 + " (),-089<>?BCFGHJLSVWZ[^hlmnxy|}".charCodeAt(s[o8] - 94))
+        : (s[o8]-" ((".charCodeAt(s[o8] / 39))
+      );
+  if(i){
+    console.log(code);
+    eval(code);
+  } 
+}
+
+
+// Execute a CPU instruction
+ins = function(op){
+  
+  // initial address.
+  var addr = 0,
+  
+  // address offset.
+  d = 0,
+  
+  // fully maskable operand.
+  t = 0xFF,
+  
+  // null backup
+  c = 0,
+  
+  // offset operand.
+  sb = 0, 
+  
+  // pbits = 0x20 or 0x30.
+  // pbits mask the flags (P) register during certain operations. The core issue is controlling the mask of bits 4 and 5 depending on interrupt op status.
+  pbits = op < 0x100 ? 0x30 : 0x20;
+  
+  // Define the opcode decoding matrix, which decides which micro-operations constitute any particular opcode.
+  // Fetch op'th item from a bitstring encoded in a data-specific variant of base64, where each character transmits 8 bits of information rather than 6.
+  // All implemented opcodes are cycle-accurate and memory-access-accurate. Unofficial opcodes are written in [...].
+  // Decode address operand
+  
+  console.log(op);
+  
+  T("                                !", "addr = 0xFFFA") // Set address register to 0xFFFA. Used in NMI.
+  T("                                *", "addr = 0xFFFC") // Set address register to 0xFFFC. Used by Reset
+  T("!                               ,", "addr = 0xFFFE") // Set address register to 0xFFFE. Used by IRQs
+  T("zy}z{y}zzy}zzy}zzy}zzy}zzy}zzy}z ", "addr = RB(PC++)") // Read next instruction in as an address
+  T("2 yy2 yy2 yy2 yy2 XX2 XX2 yy2 yy ", "d = X") // Set address offset register to index register X
+  T("  62  62  62  62  om  om  62  62 ", "d = Y") // Set address offset register to index register Y
+  T("2 y 2 y 2 y 2 y 2 y 2 y 2 y 2 y  ", "addr=u8(addr + d); d=0; tick()") // Offset address in to the same page
+  T(" y z!y z y z y z y z y z y z y z ", "addr=u8(addr); addr += 256 * RB(PC++)") // Read in a page and offset in to that page (absolute)
+  T("3 6 2 6 2 6 286 2 6 2 6 2 6 2 6 /", "addr=RB(c = addr); addr += 256 * RB(wrap(c, c + 1))") // Read in a page and offset from that page (indirect)
+  T("  *Z  *Z  *Z  *Z      6z  *Z  *Z ", "Misfire(addr, addr + d)") // Verify and correct address range across pages (absolute load)
+  T("  4k  4k  4k  4k  6z      4k  4k ", "RB(wrap(addr, addr + d))") // Verify and correct address range across pages (absolute store)
+  
+  // Load source operand 
+  T("aa__ff__ab__,4  ____ -  ____     ", "t &= A") // Mask accumulator A on to temp operand t (store)
+  T("                knnn     4  99   ", "t &= X") // Mask index register X on to temp operand t (store)
+  T("                9989    99       ", "t &= Y") // Mask index register Y on to temp operand t (store) - sty,dey,iny,tya,cpy
+  T("                       4         ", "t &= S") // Mask stack pointer register S on to temp operand t (store) - tsx, las
+  T("!!!!  !!  !!  !!  !   !!  !!  !!/", "t &= P.raw | pbits; c = t") // Assert normally unused flags and backup temp operand - php, flag test/set/clear, interrupts
+  T("_^__dc___^__            ed__98   ", "c = t; t = 0xFF") // Copy primary operand and reset it
+  T("vuwvzywvvuwvvuwv    zy|zzywvzywv ", "t &= RB(addr + d)") // Mask indirectly stored byte in to temp operand
+  T(",2  ,2  ,2  ,2  -2  -2  -2  -2   ", "t &= RB(PC++)") // Mask next instruction in to operand t (immediate)
+  
+  // Operations that mogrify memory operands directly 
+  T("    88                           ", "P.V = t & 0x40; P.N = t & 0x80") // Set overflow and sign flags from the temp result t - bit
+  T("    nink    nnnk                 ", "sb = P.C") // Store the result carry bit in temporary bit sb - rol,rla, ror,rra,arr
+  T("nnnknnnk     0                   ", "P.C = t & 0x80") // Mask the result operand t in to the carry bit - rol,rla, asl,slo,[arr,anc]
+  T("        nnnknink                 ", "P.C = t & 0x01") // Masks the least significant bit in to the carry bit - lsr,sre, ror,rra,asr
+  T("ninknink                         ", "t = (t << 1) | (sb * 0x01)") // Left shifts temp operand and retains stored carry bit
+  T("        nnnknnnk                 ", "t = (t >> 1) | (sb * 0x80)") // Right shifts temp operand and retains stored carry bit
+  T("                 !      kink     ", "t = u8(t - 1)") // Decrement temporary operand - dec,dex,dey,dcp
+  T("                         !  khnk ", "t = u8(t + 1)") // Increment temporary operand - inc,inx,iny,isb
+  
+  // Store modified value (memory) 
+  T("kgnkkgnkkgnkkgnkzy|J    kgnkkgnk ", "WB(addr + d, t)") // Write the temporary operand to memory (indirect)
+  T("                   q             ", "WB(wrap(addr, addr+d), t &= ((addr + d) >> 8))") // Write temporary operand to memory across pages, like a 'Far' memory operation without actual segmentation - [shx,shy,shs,sha?]
+  
+  // Some operations used up one clock cycle that we did not account for yet 
+  T("rpstljstqjstrjst - - - -kjstkjst/", "tick()") // Skip a cycle (NOP) - nop,flag ops,inc,dec,shifts,stack,transregister,interrupts
+  
+  // Stack operations and unconditional jumps 
+  T("     !  !    !                   ", "tick(); t = Pop()") // Pop value from the stack with NOP delay - pla,plp,rti
+  T("        !   !                    ", "RB(PC++); PC = Pop(); PC |= (Pop() << 8)") // Pop two bytes from the stack into the 16-bit program counter. Similar to x86 RET - rti,rts
+  T("            !                    ", "RB(PC++)") // Read (and discard) the next instruction - rts
+  T("!   !                           /", "d=PC + (op ? -1 : 1); Push(d >> 8); Push(d)") // Set address offset forward or backward and pushes page and absolute address to the stack. Similar to x86 CALL - jsr, interrupts
+  T("!   !    8   8                  /", "PC = addr") // Directly sets the program counter - jmp, jsr, interrupts
+  T("!!       !                      /", "Push(t)") // Push temp operand t to the stack - pha, php, interrupts
+  
+  // Bitmasks 
+  T("! !!  !!  !!  !!  !   !!  !!  !!/", "t = 1") // Set temporary operand t to 1
+  T("  !   !                   !!  !! ", "t <<= 1") // Left shift temp operand t by 1 (doubles it)
+  T("! !   !   !!  !!       !   !   !/", "t <<= 2") // Left shift temp operand t by 2 (x4)
+  T("  !   !   !   !        !         ", "t <<= 4") // Left shifts temp operand t by 4 (x16)
+  T("   !       !           !   !____ ", "t = u8(~t)") // Logically invert temp operand t - sbc, isb, clear flag
+  T("`^__   !       !               !/", "t = c | t") // Store logical AND between temp and backup operands - ora, slo, set flag
+  T("  !!dc`_  !!  !   !   !!  !!  !  ", "t = c & t") // Stores logical OR between temp and backup operands - and, bit, rla, clear/test flag
+  T("        _^__                     ", "t = c ^ t") // Stores logical XOR between temp and backup operands - eor, sre
+  
+  // Conditional branches 
+  T("      !       !       !       !  ", "if(t){ tick(); Misfire(PC, addr = s8(addr) + PC); PC = addr }") // Jump to a checked offset address based on t
+  T("  !       !       !       !      ", "if(!t){ tick(); Misfire(PC, addr = s8(addr) + PC); PC = addr }") // Jumps to a checked offset address based on !t
+    
+  // Addition and subtraction 
+  T("            _^__            ____ ", "c = t; t += A + P.C; P.V = (c ^ t) & (A ^ t) & 0x80; P.C = t & 0x100") // Save operand t and add (subtract) last A with Carry. Checks for overflow and recalculates carry.
+  T("                        ed__98   ", "t = c - t; P.C = ~t & 0x100") // Compare t and c operands via subtraction (same means t == 0) Carry bit is set to inverse of t allowing the user to identify which operand is larger - cmp,cpx,cpy, dcp, sbx
+  
+  // Store modified value (register) 
+  T("aa__aa__aa__ab__ 4 !____    ____ ", "A = t") // Set accumulator (A) to operand t result
+  T("                    nnnn 4   !   ", "X = t") // Set index register (X) to operand t result - ldx, dex, tax, inx, tsx,lax,las,sbx
+  T("                 !  9988 !       ", "Y = t") // Set index register (Y) to operand t result - ldy, dey, tay, iny
+  T("                   4   0         ", "S = t") // Set stack pointer (S) to operand t result - txs, las, shs
+  T("!  ! ! !!  !   !       !   !   !/", "P.raw = t & ~0x30") // Directly set the processor flags register ignoring the unused 4th and 5th bits - plp, rti, flag set/clear
+  
+  // Generic status flag updates 
+  T("wwwvwwwvwwwvwxwv 5 !}}||{}wv{{wv ", "P.N = t & 0x80") // Update flags negative bit to match result sign bit
+  T("wwwv||wvwwwvwxwv 5 !}}||{}wv{{wv ", "P.Z = u8(t) == 0") // Update flags for zero result
+  T("             0                   ", "P.V = (((t >> 5)+1)&2)") // Update flags overflow bit by testing if incrementing 6th bit asserts 7th - [arr]
+  
+}
+
+// Open the ROM file
+xhr = new XMLHttpRequest;
+xhr.open('GET', "rom.nes");
+xhr.responseType = 'arraybuffer';
+xhr.send();
+xhr.onload = function(){
+
+  // Save the ROM's binary content as an array of unsigned 8-bit integers
+  file = new Uint8Array(xhr.response);
+  
+  // Place PRG ROM in memory
+  for(i = 0; i < 0x7FFF; i++){
+    mem[0x8000 + i] = file[16 + i];
+  }
+  
+  // Place CHR ROM in memory
+  for(i = 0; i < 0x1FFF; i++){
+    mem[0x6000 + i] = file[0x8000 + 16 + i];
+  }
+  
+  prepare_op();
+  prepare_op();
+  prepare_op();
+  prepare_op();
+  prepare_op();
+  prepare_op();
+  prepare_op();
+  prepare_op();
+  prepare_op();
+  prepare_op();
+}
+  
+</script>

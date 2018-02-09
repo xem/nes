@@ -1,0 +1,89 @@
+﻿<p>NES ROM <input onchange="with(f=new FileReader)readAsArrayBuffer(files[0]),onload=s"type=file>
+<p>
+<table border>
+<th width=500>Code
+<th width=256>Graphics
+<tr>
+<td><pre id=code>
+<td style=vertical-align:top>
+<canvas id=a width=8 height=32000 style=display:none></canvas>
+<canvas id=b width=256 height=1024></canvas>
+</table>
+
+<br>
+<script>
+
+// Init canvas
+c = a.getContext("2d");
+c2 = b.getContext("2d");
+
+c.imageSmoothingEnabled = false;
+c2.imageSmoothingEnabled = false;
+
+// Process ROM stored in z.
+s = z => {
+
+
+  h = code.innerHTML = "";
+  
+  // Make an array of bytes
+  u = new Uint8Array(f.result);
+  
+  // Read number of 16kb program banks
+  prg = u[4];
+  prgaddress = prg ? 16 : 0x2000;
+  prg = prg || 1;
+  
+  // Read number of 8kb graphics banks 
+  chr = u[5];
+  chraddress = chr ? 16 + 16 * 1024 * prg : 0x2000;
+  chr = chr || 1;
+  
+  // Log bank sizes
+  console.log(`${prg} * 16kB ROM, ${chr} * 8kB VROM`);
+  
+  // Write PRG addresses and bytes
+  for(i = prgaddress; i < prgaddress + prg * 16 * 1024; i++){
+    h += ((1e3)+i.toString(16)).slice(-4) + " | " + ((1e3)+u[i].toString(16)).slice(-2) + " | ";
+    h += "\n";
+  }
+  code.innerHTML = h;
+  
+  
+  // Prepare canvas
+  b.height = chr * 1024;
+
+  for(i = chraddress; i < chraddress + chr * 8 * 1024; i += 16){
+  
+    if(i < chraddress + 100) console.log(u[i]);
+    
+    for(k = 0; k < 8; k++){
+      b = u[i + k];
+      bb = u[i + 8 + k];
+      for(j = 0; j < 8; j++){
+        b1 = ((b >> (7 - j)) & 1) * 2 + ((bb >> (7 - j)) & 1);
+        c.fillStyle = ["#000","#555","#aaa","#fff"][b1];
+        c.fillRect(j, ((i - chraddress) / 2 + k), 1, 1);
+      }
+    }
+  }
+  for(i = 0; i < chr * 256; i++){
+    c2.drawImage(a, 0, i * 8, 8, 8, (i%8)*32, (~~(i / 8)) * 32, 32, 32);
+  }
+  for(i=0;i<512;i++){
+    c2.fillStyle = "pink";
+    c2.fillRect(i*32-1,0,1,8200);
+    c2.fillRect(0,i*32-1,256,1);
+  }
+}
+
+// Load SMB and call s
+f = new XMLHttpRequest;
+f.open('GET', "smb3.nes");
+f.responseType = 'arraybuffer';
+f.send();
+f.onload=function(){
+  f.result = f.response;
+  s();
+};
+</script>

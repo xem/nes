@@ -1,0 +1,27 @@
+{
+  "name": "jsnes",
+  "version": "1.0.0",
+  "description": "A JavaScript NES emulator",
+  "homepage": "https://github.com/bfirsh/jsnes",
+  "author": "Ben Firshman <ben@firshman.co.uk> (https://fir.sh)",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/bfirsh/jsnes.git"
+  },
+  "license": "GPL-3.0",
+  "scripts": {
+    "build": "webpack",
+    "test": "mocha ./test/*.spec.js",
+    "test:watch": "mocha -w ./test/*.spec.js",
+    "prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "jshint": "^2.9.5",
+    "jshint-loader": "^0.8.4",
+    "mocha": "^5.0.0",
+    "sinon": "^4.2.2",
+    "webpack": "^3.9.1"
+  }
+}
