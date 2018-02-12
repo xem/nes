@@ -20,6 +20,268 @@ c2 = b.getContext("2d");
 c.imageSmoothingEnabled = false;
 c2.imageSmoothingEnabled = false;
 
+// Opcodes list
+opcodes = [
+"BRK",
+"ORA X,ind",
+,
+,
+,
+"ORA zpg",
+"ASL zpg",
+,
+"PHP",
+"ORA #",
+"ASL A",
+,
+,
+"ORA abs",
+"ASL abs",
+,
+"BPL rel",
+"ORA ind,Y",
+,
+,
+,
+"ORA zpg,X",
+"ASL zpg,X",
+,
+"CLC",
+"ORA abs,Y",
+,
+,
+,
+"ORA abs,X",
+"ASL abs,X",
+,
+"JSR abs",
+"AND X,ind",
+,
+,
+"BIT zpg",
+"AND zpg",
+"ROL zpg",
+,
+"PLP",
+"AND #",
+"ROL A",
+,
+"BIT abs",
+"AND abs",
+"ROL abs",
+,
+"BMI rel",
+"AND ind,Y",
+,
+,
+,
+"AND zpg,X",
+"ROL zpg,X",
+,
+"SEC",
+"AND abs,Y",
+,
+,
+,
+"AND abs,X",
+"ROL abs,X",
+,
+"RTI",
+"EOR X,ind",
+,
+,
+,
+"EOR zpg",
+"LSR zpg",
+,
+"PHA",
+"EOR #",
+"LSR A",
+,
+"JMP abs",
+"EOR abs",
+"LSR abs",
+,
+"BVC rel",
+"EOR ind,Y",
+,
+,
+,
+"EOR zpg,X",
+"LSR zpg,X",
+,
+"CLI",
+"EOR abs,Y",
+,
+,
+,
+"EOR abs,X",
+"LSR abs,X",
+,
+"RTS",
+"ADC X,ind",
+,
+,
+,
+"ADC zpg",
+"ROR zpg",
+,
+"PLA",
+"ADC #",
+"ROR A",
+,
+"JMP ind",
+"ADC abs",
+"ROR abs",
+,
+"BVS rel",
+"ADC ind,Y",
+,
+,
+,
+"ADC zpg,X",
+"ROR zpg,X",
+,
+"SEI",
+"ADC abs,Y",
+,
+,
+,
+"ADC abs,X",
+"ROR abs,X",
+,
+,
+"STA X,ind",
+,
+,
+"STY zpg",
+"STA zpg",
+"STX zpg",
+,
+"DEY",
+,
+"TXA",
+,
+"STY abs",
+"STA abs",
+"STX abs",
+,
+"BCC rel",
+"STA ind,Y",
+,
+,
+"STY zpg,X",
+"STA zpg,X",
+"STX zpg,Y",
+,
+"TYA",
+"STA abs,Y",
+"TXS",
+,
+,
+"STA abs,X",
+,
+,
+"LDY #",
+"LDA X,ind",
+"LDX #",
+,
+"LDY zpg",
+"LDA zpg",
+"LDX zpg",
+,
+"TAY",
+"LDA #",
+"TAX",
+,
+"LDY abs",
+"LDA abs",
+"LDX abs",
+,
+"BCS rel",
+"LDA ind,Y",
+,
+,
+"LDY zpg,X",
+"LDA zpg,X",
+"LDX zpg,Y",
+,
+"CLV",
+"LDA abs,Y",
+"TSX",
+,
+"LDY abs,X",
+"LDA abs,X",
+"LDX abs,Y",
+,
+"CPY #",
+"CMP X,ind",
+,
+,
+"CPY zpg",
+"CMP zpg",
+"DEC zpg",
+,
+"INY",
+"CMP #",
+"DEX",
+,
+"CPY abs",
+"CMP abs",
+"DEC abs",
+,
+"BNE rel",
+"CMP ind,Y",
+,
+,
+,
+"CMP zpg,X",
+"DEC zpg,X",
+,
+"CLD",
+"CMP abs,Y",
+,
+,
+,
+"CMP abs,X",
+"DEC abs,X",
+,
+"CPX #",
+"SBC X,ind",
+,
+,
+"CPX zpg",
+"SBC zpg",
+"INC zpg",
+,
+"INX",
+"SBC #",
+"NOP",
+,
+"CPX abs",
+"SBC abs",
+"INC abs",
+,
+"BEQ rel",
+"SBC ind,Y",
+,
+,
+,
+"SBC zpg,X",
+"INC zpg,X",
+,
+"SED",
+"SBC abs,Y",
+,
+,
+,
+"SBC abs,X",
+"INC abs,X"
+];
+
+// opcodes = "BRK1ORA X,ind1111ORA zpg1ASL zpg11PHP1ORA #1ASL A111ORA abs1ASL abs11BPL rel1ORA ind,Y1111ORA zpg,X1ASL zpg,X11CLC1ORA abs,Y1111ORA abs,X1ASL abs,X11JSR abs1AND X,ind111BIT zpg1AND zpg1ROL zpg11PLP1AND #1ROL A11BIT abs1AND abs1ROL abs11BMI rel1AND ind,Y1111AND zpg,X1ROL zpg,X11SEC1AND abs,Y1111AND abs,X1ROL abs,X11RTI1EOR X,ind1111EOR zpg1LSR zpg11PHA1EOR #1LSR A11JMP abs1EOR abs1LSR abs11BVC rel1EOR ind,Y1111EOR zpg,X1LSR zpg,X11CLI1EOR abs,Y1111EOR abs,X1LSR abs,X11RTS1ADC X,ind1111ADC zpg1ROR zpg11PLA1ADC #1ROR A11JMP ind1ADC abs1ROR abs11BVS rel1ADC ind,Y1111ADC zpg,X1ROR zpg,X11SEI1ADC abs,Y1111ADC abs,X1ROR abs,X111STA X,ind111STY zpg1STA zpg1STX zpg11DEY11TXA11STY abs1STA abs1STX abs11BCC rel1STA ind,Y111STY zpg,X1STA zpg,X1STX zpg,Y11TYA1STA abs,Y1TXS111STA abs,X111LDY #1LDA X,ind1LDX #11LDY zpg1LDA zpg1LDX zpg11TAY1LDA #1TAX11LDY abs1LDA abs1LDX abs11BCS rel1LDA ind,Y111LDY zpg,X1LDA zpg,X1LDX zpg,Y11CLV1LDA abs,Y1TSX11LDY abs,X1LDA abs,X1LDX abs,Y11CPY #1CMP X,ind111CPY zpg1CMP zpg1DEC zpg11INY1CMP #1DEX11CPY abs1CMP abs1DEC abs11BNE rel1CMP ind,Y1111CMP zpg,X1DEC zpg,X11CLD1CMP abs,Y1111CMP abs,X1DEC abs,X11CPX #1SBC X,ind111CPX zpg1SBC zpg1INC zpg11INX1SBC #1NOP11CPX abs1SBC abs1INC abs11BEQ rel1SBC ind,Y1111SBC zpg,X1INC zpg,X11SED1SBC abs,Y1111SBC abs,X1INC abs,X".split(1);
+
+
 // Process ROM stored in z.
 s = z => {
 
@@ -42,9 +304,55 @@ s = z => {
   // Log bank sizes
   console.log(`${prg} * 16kB ROM, ${chr} * 8kB VROM`);
   
-  // Write PRG addresses and bytes
+  started = 0;
+  
+  // Write PRG address, bytes, asm
   for(i = prgaddress; i < prgaddress + prg * 16 * 1024; i++){
-    h += ((1e3)+i.toString(16)).slice(-4) + " | " + ((1e3)+u[i].toString(16)).slice(-2) + " | ";
+    
+    // skip 0x00 padding
+    if(u[i] == 0x00 && !started){
+      continue;
+    }
+    else {
+      started = 1;
+    }
+    
+    addr = i;
+    op = u[i];
+    asm = opcodes[op] || "?";
+    
+    op = ((1e3)+op.toString(16)).slice(-2);
+    
+    // Convert "#" into immediate operand (1 byte) 
+    if(asm.indexOf("#") > -1){
+      op2 = u[++i];
+      asm += "$" + ((1e3)+op2.toString(16)).slice(-2);
+      op += " " + ((1e3)+op2.toString(16)).slice(-2) + "   ";
+    }
+    
+    // Convert "abs" into absolute address (2 bytes)
+    else if(asm.indexOf("abs") > -1){
+      op2 = u[++i];
+      op3 = u[++i];
+      abs = ((op3 << 8) + op2);
+      asm = asm.replace("abs",  "$" + ((1e3) + abs.toString(16)).slice(-4));
+      op += " " + ((1e3) + op2.toString(16)).slice(-2) + " " + ((1e3)+op3.toString(16)).slice(-2);
+    }
+    
+    // Convert "rel" into relative address (1 byte)
+    else if(asm.indexOf("rel") > -1){
+      op2 = u[++i];
+      abs = ((op3 << 8) + op2);
+      asm = asm.replace("rel",  "$#" + ((1e3) + op2.toString(16)).slice(-2));
+      op += " " + ((1e3) + op2.toString(16)).slice(-2) + "   ";
+    }
+    
+    // Pad with spaces if no extra operand is used
+    else {
+      op += "      ";
+    }
+    
+    h += ((1e3) + (addr - 16 + 0x8000).toString(16)).slice(-4) + " | " + op + " | " + asm;
     h += "\n";
   }
   code.innerHTML = h;
@@ -54,8 +362,6 @@ s = z => {
   b.height = chr * 1024;
 
   for(i = chraddress; i < chraddress + chr * 8 * 1024; i += 16){
-  
-    if(i < chraddress + 100) console.log(u[i]);
     
     for(k = 0; k < 8; k++){
       b = u[i + k];
@@ -77,9 +383,9 @@ s = z => {
   }
 }
 
-// Load SMB and call s
+// Load ROM and call s
 f = new XMLHttpRequest;
-f.open('GET', "smb3.nes");
+f.open('GET', "dk.nes");
 f.responseType = 'arraybuffer';
 f.send();
 f.onload=function(){
