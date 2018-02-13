@@ -6,8 +6,7 @@
 <tr>
 <td><pre id=code>
 <td style=vertical-align:top>
-<canvas id=a width=8 height=32000 style=display:none></canvas>
-<canvas id=b width=256 height=1024></canvas>
+<canvas id=a width=256 height=1024></canvas>
 </table>
 
 <br>
@@ -15,12 +14,8 @@
 
 // Init canvas
 c = a.getContext("2d");
-c2 = b.getContext("2d");
 
-c.imageSmoothingEnabled = false;
-c2.imageSmoothingEnabled = false;
-
-// Opcodes list
+/*
 opcodes = [
 "BRK",
 "ORA X,ind",
@@ -278,15 +273,22 @@ opcodes = [
 "SBC abs,X",
 "INC abs,X"
 ];
+*/
 
-// opcodes = "BRK1ORA X,ind1111ORA zpg1ASL zpg11PHP1ORA #1ASL A111ORA abs1ASL abs11BPL rel1ORA ind,Y1111ORA zpg,X1ASL zpg,X11CLC1ORA abs,Y1111ORA abs,X1ASL abs,X11JSR abs1AND X,ind111BIT zpg1AND zpg1ROL zpg11PLP1AND #1ROL A11BIT abs1AND abs1ROL abs11BMI rel1AND ind,Y1111AND zpg,X1ROL zpg,X11SEC1AND abs,Y1111AND abs,X1ROL abs,X11RTI1EOR X,ind1111EOR zpg1LSR zpg11PHA1EOR #1LSR A11JMP abs1EOR abs1LSR abs11BVC rel1EOR ind,Y1111EOR zpg,X1LSR zpg,X11CLI1EOR abs,Y1111EOR abs,X1LSR abs,X11RTS1ADC X,ind1111ADC zpg1ROR zpg11PLA1ADC #1ROR A11JMP ind1ADC abs1ROR abs11BVS rel1ADC ind,Y1111ADC zpg,X1ROR zpg,X11SEI1ADC abs,Y1111ADC abs,X1ROR abs,X111STA X,ind111STY zpg1STA zpg1STX zpg11DEY11TXA11STY abs1STA abs1STX abs11BCC rel1STA ind,Y111STY zpg,X1STA zpg,X1STX zpg,Y11TYA1STA abs,Y1TXS111STA abs,X111LDY #1LDA X,ind1LDX #11LDY zpg1LDA zpg1LDX zpg11TAY1LDA #1TAX11LDY abs1LDA abs1LDX abs11BCS rel1LDA ind,Y111LDY zpg,X1LDA zpg,X1LDX zpg,Y11CLV1LDA abs,Y1TSX11LDY abs,X1LDA abs,X1LDX abs,Y11CPY #1CMP X,ind111CPY zpg1CMP zpg1DEC zpg11INY1CMP #1DEX11CPY abs1CMP abs1DEC abs11BNE rel1CMP ind,Y1111CMP zpg,X1DEC zpg,X11CLD1CMP abs,Y1111CMP abs,X1DEC abs,X11CPX #1SBC X,ind111CPX zpg1SBC zpg1INC zpg11INX1SBC #1NOP11CPX abs1SBC abs1INC abs11BEQ rel1SBC ind,Y1111SBC zpg,X1INC zpg,X11SED1SBC abs,Y1111SBC abs,X1INC abs,X".split(1);
+
+// # = imm
+// ~ = ind
+// @ = abs
+// $ = zpg 
+// & = rel
+
+// Opcodes list
+opcodes = "BrkOra x,~???Ora$Asl$?PhpOra#Asl a??Ora@Asl@?Bpl&Ora~,y???Ora$,xAsl$,x?ClcOra@,y???Ora@,xAsl@,x?Jsr@And x,~??Bit$And$Rol$?PlpAnd#Rol a?Bit@And@Rol@?Bmi&And~,y???And$,xRol$,x?SecAnd@,y???And@,xRol@,x?RtiEor x,~???Eor$Lsr$?PhaEor#Lsr a?Jmp@Eor@Lsr@?Bvc&Eor~,y???Eor$,xLsr$,x?CliEor@,y???Eor@,xLsr@,x?RtsAdc x,~???Adc$Ror$?PlaAdc#Ror a?Jmp~Adc@Ror@?Bvs&Adc~,y???Adc$,xRor$,x?SeiAdc@,y???Adc@,xRor@,x??Sta x,~??Sty$Sta$Stx$?Dey?Txa?Sty@Sta@Stx@?Bcc&Sta~,y??Sty$,xSta$,xStx$,y?TyaSta@,yTxs??Sta@,x??Ldy#Lda x,~Ldx#?Ldy$Lda$Ldx$?TayLda#Tax?Ldy@Lda@Ldx@?Bcs&Lda~,y??Ldy$,xLda$,xLdx$,y?ClvLda@,yTsx?Ldy@,xLda@,xLdx@,y?Cpy#Cmp x,~??Cpy$Cmp$Dec$?InyCmp#Dex?Cpy@Cmp@Dec@?Bne&Cmp~,y???Cmp$,xDec$,x?CldCmp@,y???Cmp@,xDec@,x?Cpx#Sbc x,~??Cpx$Sbc$Inc$?InxSbc#Nop?Cpx@Sbc@Inc@?Beq&Sbc~,y???Sbc$,xInc$,x?SedBc@,y???Sbc@,xInc@,x?".split(/(?=[A-Z?])/)
 
 
-// Process ROM stored in z.
+// Process ROM Stored in z.
 s = z => {
 
-
-  h = code.innerHTML = "";
   
   // Make an array of bytes
   u = new Uint8Array(f.result);
@@ -301,8 +303,14 @@ s = z => {
   chraddress = chr ? 16 + 16 * 1024 * prg : 0x2000;
   chr = chr || 1;
   
-  // Log bank sizes
-  console.log(`${prg} * 16kB ROM, ${chr} * 8kB VROM`);
+  // Log banks sizes
+  // console.log(`${prg} * 16kB ROM, ${chr} * 8kB VROM`);
+  
+  // Read main addresses
+  h = code.innerHTML = "";
+  h += "NMI: $" + (1e3 + ((u[0x800B] << 8) + u[0x800A]).toString(16)).slice(-4) + "\n";
+  h += "Reset: $" + (1e3 + ((u[0x800D] << 8) + u[0x800C]).toString(16)).slice(-4) + "\n";
+  h += "BRK: $" + (1e3 + ((u[0x800F] << 8) + u[0x800E]).toString(16)).slice(-4) + "\n\n";
   
   started = 0;
   
@@ -326,24 +334,37 @@ s = z => {
     // Convert "#" into immediate operand (1 byte) 
     if(asm.indexOf("#") > -1){
       op2 = u[++i];
-      asm += "$" + ((1e3)+op2.toString(16)).slice(-2);
+      asm = asm.replace("#", " $" + ((1e3)+op2.toString(16)).slice(-2));
       op += " " + ((1e3)+op2.toString(16)).slice(-2) + "   ";
     }
     
-    // Convert "abs" into absolute address (2 bytes)
-    else if(asm.indexOf("abs") > -1){
+    // Convert "$" into zpg address (1 byte)
+    else if(asm.indexOf("$") > -1){
+      op2 = u[++i];
+      asm = asm.replace("$", " " + ((1e3)+op2.toString(16)).slice(-2));
+      op += " " + ((1e3)+op2.toString(16)).slice(-2) + "   ";
+    }
+    
+    // Convert "~" into ind address (1 byte)
+    else if(asm.indexOf("~") > -1){
+      op2 = u[++i];
+      asm = asm.replace("~", " ${" + ((1e3)+op2.toString(16)).slice(-2) + "}");
+      op += " " + ((1e3)+op2.toString(16)).slice(-2) + "   ";
+    }
+    
+    // Convert "@" into absolute address (2 bytes)
+    else if(asm.indexOf("@") > -1){
       op2 = u[++i];
       op3 = u[++i];
-      abs = ((op3 << 8) + op2);
-      asm = asm.replace("abs",  "$" + ((1e3) + abs.toString(16)).slice(-4));
+      val = ((op3 << 8) + op2);
+      asm = asm.replace("@",  " $" + ((1e3) + val.toString(16)).slice(-4));
       op += " " + ((1e3) + op2.toString(16)).slice(-2) + " " + ((1e3)+op3.toString(16)).slice(-2);
     }
     
-    // Convert "rel" into relative address (1 byte)
-    else if(asm.indexOf("rel") > -1){
+    // Convert "&" into relative address (1 byte)
+    else if(asm.indexOf("&") > -1){
       op2 = u[++i];
-      abs = ((op3 << 8) + op2);
-      asm = asm.replace("rel",  "$#" + ((1e3) + op2.toString(16)).slice(-2));
+      asm = asm.replace("&",  " $#" + ((1e3) + op2.toString(16)).slice(-2));
       op += " " + ((1e3) + op2.toString(16)).slice(-2) + "   ";
     }
     
@@ -355,12 +376,15 @@ s = z => {
     h += ((1e3) + (addr - 16 + 0x8000).toString(16)).slice(-4) + " | " + op + " | " + asm;
     h += "\n";
   }
-  code.innerHTML = h;
+  
+  code.innerHTML = h.toUpperCase().replace(/, /g, ",");
   
   
   // Prepare canvas
-  b.height = chr * 1024;
+  a.height = chr * 1024;
 
+  // Read tile (2 bytes)
+  tile = 0;
   for(i = chraddress; i < chraddress + chr * 8 * 1024; i += 16){
     
     for(k = 0; k < 8; k++){
@@ -369,21 +393,25 @@ s = z => {
       for(j = 0; j < 8; j++){
         b1 = ((b >> (7 - j)) & 1) * 2 + ((bb >> (7 - j)) & 1);
         c.fillStyle = ["#000","#555","#aaa","#fff"][b1];
-        c.fillRect(j, ((i - chraddress) / 2 + k), 1, 1);
+        c.fillRect(
+          (tile % 8) * 32 + j * 4, // x
+          ((~~(tile / 8))) * 32 + k * 4, // y
+          4, // w
+          4 // h
+        );
       }
     }
+    tile++;
   }
-  for(i = 0; i < chr * 256; i++){
-    c2.drawImage(a, 0, i * 8, 8, 8, (i%8)*32, (~~(i / 8)) * 32, 32, 32);
-  }
+  
   for(i=0;i<512;i++){
-    c2.fillStyle = "pink";
-    c2.fillRect(i*32-1,0,1,8200);
-    c2.fillRect(0,i*32-1,256,1);
+    c.fillStyle = "pink";
+    c.fillRect(i*32-1,0,1,8200);
+    c.fillRect(0,i*32-1,256,1);
   }
 }
 
-// Load ROM and call s
+// Auto demo: Load SMB ROM And call s()
 f = new XMLHttpRequest;
 f.open('GET', "smb.nes");
 f.responseType = 'arraybuffer';
