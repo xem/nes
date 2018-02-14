@@ -1,0 +1,60 @@
+﻿<body id=b style=margin:0>
+<canvas id=a></canvas>
+<script>
+
+/* Shim */
+
+d = document;
+c = a.getContext("2d");
+a.width = 256;
+a.height = innerHeight;
+
+/* Golf */
+
+a.style="position:absolute;top:50px;left:260px";
+d.write('<input onchange="with(f=new FileReader)readAsArrayBuffer(files[0]),onload=s"type=file><pre id=C>');
+z=(t,n=2)=>((1e3)+t.toString(16)).slice(-n);
+s=u=>{
+  u = new Uint8Array(f.result);
+  for(h = "", i = 16; i < 16 + u[4] * 16 * 1024; i++){
+    m = z(u[l = i]);
+    // ## = $abs (2 bytes)
+    // # = $imm / $zpg / $rel / $ind
+    n = "BrkOra x#???Ora#Asl#?PhpOra#Asl a??Ora##Asl##?Bpl#Ora#y???Ora#xAsl#x?ClcOra##y???Ora##xAsl##x?Jsr##And x#??Bit#And#Rol#?PlpAnd#Rol a?Bit##And##Rol##?Bmi#And#y???And#xRol#x?SecAnd##y???And##xRol##x?RtiEor x#???Eor#Lsr#?PhaEor#Lsr a?Jmp##Eor##Lsr##?Bvc#Eor#y???Eor#xLsr#x?CliEor##y???Eor##xLsr##x?RtsAdc x#???Adc#Ror#?PlaAdc#Ror a?Jmp#Adc##Ror##?Bvs#Adc#y???Adc#xRor#x?SeiAdc##y???Adc##xRor##x??Sta x#??Sty#Sta#Stx#?Dey?Txa?Sty##Sta##Stx##?Bcc#Sta#y??Sty#xSta#xStx#y?TyaSta##yTxs??Sta##x??Ldy#Lda x#Ldx#?Ldy#Lda#Ldx#?TayLda#Tax?Ldy##Lda##Ldx##?Bcs#Lda#y??Ldy#xLda#xLdx#y?ClvLda##yTsx?Ldy##xLda##xLdx##y?Cpy#Cmp x#??Cpy#Cmp#Dec#?InyCmp#Dex?Cpy##Cmp##Dec##?Bne#Cmp#y???Cmp#xDec#x?CldCmp##y???Cmp##xDec##x?Cpx#Sbc x#??Cpx#Sbc#Inc#?InxSbc#Nm?Cpx##Sbc##Inc##?Beq#Sbc#y???Sbc#xInc#x?SedBc##y???Sbc##xInc##x?".split(/(?=[A-Z?])/)[u[i]];
+
+    if(n.includes("##")){
+      r = u[++i];
+      t = u[++i];
+      n = n.replace("##",  " $" + z((t << 8, 4) + r) + " ");
+    }
+    else if(n.includes("#")){
+      r = u[++i];
+      n = n.replace("#", " $" + z(r) + " ");
+    }
+    h += z(l - 16 + 0x8000, 4) + " | " + m + " | " + n + "\n";
+  }
+
+  C.innerHTML = h;
+  a.height = 2e4;
+  for(i = 0; i < u[5] * 8 * 1024; i += 16){
+    for(k = 0; k < 8; k++){
+      b = u[16 + 16 * 1024 * u[4] + i + k];
+      x = u[16 + 16 * 1024 * u[4] + i + 8 + k];
+      for(j = 0; j < 8; j++){
+        c.fillStyle = ["#000","#555","#aaa","#fff"][((b >> (7 - j)) & 1) * 2 + ((x >> (7 - j)) & 1)];
+        c.fillRect((~~(i/16) % 8) * 32 + j * 4, ((~~(~~(i/16) / 8))) * 32 + k * 4, 4, 4);
+      }
+    }
+  }
+}
+
+/* Debug */
+f = new XMLHttpRequest;
+f.open('GET', "smb.nes");
+f.responseType = 'arraybuffer';
+f.send();
+f.onload=function(){
+  f.result = f.response;
+  s();
+};
+</script>

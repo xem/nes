@@ -10,11 +10,6 @@
 c = a.getContext("2d");
 
 // Opcodes list (compressed), see notes.txt for the raw list
-// # = imm
-// ~ = ind
-// @ = abs
-// $ = zpg 
-// & = rel
 opcodes = "BrkOra x,~???Ora$Asl$?PhpOra#Asl a??Ora@Asl@?Bpl&Ora~,y???Ora$,xAsl$,x?ClcOra@,y???Ora@,xAsl@,x?Jsr@And x,~??Bit$And$Rol$?PlpAnd#Rol a?Bit@And@Rol@?Bmi&And~,y???And$,xRol$,x?SecAnd@,y???And@,xRol@,x?RtiEor x,~???Eor$Lsr$?PhaEor#Lsr a?Jmp@Eor@Lsr@?Bvc&Eor~,y???Eor$,xLsr$,x?CliEor@,y???Eor@,xLsr@,x?RtsAdc x,~???Adc$Ror$?PlaAdc#Ror a?Jmp~Adc@Ror@?Bvs&Adc~,y???Adc$,xRor$,x?SeiAdc@,y???Adc@,xRor@,x??Sta x,~??Sty$Sta$Stx$?Dey?Txa?Sty@Sta@Stx@?Bcc&Sta~,y??Sty$,xSta$,xStx$,y?TyaSta@,yTxs??Sta@,x??Ldy#Lda x,~Ldx#?Ldy$Lda$Ldx$?TayLda#Tax?Ldy@Lda@Ldx@?Bcs&Lda~,y??Ldy$,xLda$,xLdx$,y?ClvLda@,yTsx?Ldy@,xLda@,xLdx@,y?Cpy#Cmp x,~??Cpy$Cmp$Dec$?InyCmp#Dex?Cpy@Cmp@Dec@?Bne&Cmp~,y???Cmp$,xDec$,x?CldCmp@,y???Cmp@,xDec@,x?Cpx#Sbc x,~??Cpx$Sbc$Inc$?InxSbc#Nop?Cpx@Sbc@Inc@?Beq&Sbc~,y???Sbc$,xInc$,x?SedBc@,y???Sbc@,xInc@,x?".split(/(?=[A-Z?])/)
 
 // Process ROM Stored in f.result.
@@ -68,7 +63,7 @@ s = z => {
     // Convert "$" into zpg address (1 byte)
     else if(asm.indexOf("$") > -1){
       op2 = u[++i];
-      asm = asm.replace("$", " " + ((1e3)+op2.toString(16)).slice(-2));
+      asm = asm.replace("$", " $" + ((1e3)+op2.toString(16)).slice(-2));
       op += " " + ((1e3)+op2.toString(16)).slice(-2) + "   ";
     }
     
