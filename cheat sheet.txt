@@ -1,0 +1,237 @@
+==================
+ NES architecture
+  cheat sheet
+ (for emulators)
+==================
+
+I. Physical cartridge (Game PAK)
+--------------------------------
+
+Cartridges contain ROM and RAM chips:
+
+| Banks   | Size   | Number | Use
+|---------+--------+--------+-----------
+| PRG-ROM | 16KB   | 1-4096 | Contains game code and sometimes compressed graphics, read-only
+| PRG-RAM | 2-64KB | 0-1    | Contains persistent save files (battery-backed)
+| CHR-ROM | 8KB    | 0-4096 | Contains game graphics, read-only, also called VROM
+| CHR-RAM | 8KB    | 0-1    | Contains graphics decompressed at runtime
+| VRAM    | 2KB    | 0-1    | Adds 2 screens of nametable memory to the PPU
+
+The CPU can only address 32KB of PRG-ROM/RAM and 8KB of CHR-ROM/RAM at once, which is enough for many games.
+Bigger games perform bank switching to access different parts of ROM/RAM at runtime.
+Bank switching is performed by writing on specific I/O registers.
+Banks configuration is defined by a mapper.
+There are many hundreds of different mappers, a handful represent most of the games.
+Cartridges always contain at least one CHR bank (ROM or RAM), sometimes both.
+
+Cartridges soldering also define if the nametable mirroring is vertical or horizontal (unless it's extended by VRAM).
+
+
+II. iNES ROM FILE
+-----------------
+
+Two versions of this file format exist (1.0 and 2.0), their similarities and differences are described below.
+Multi-bytes values are encoded in big-endian.
+
+Header (bytes 0-15):
+
+| Byte | Value | Use
+|------+-------+----------
+| 0    | $4E   | "N" 
+| 1    | $45   | "E" 
+| 2    | $53   | "S" 
+| 3    | $1A   | <EOF>
+| 4    | $xx   | Number of 16KB PRG-ROM banks
+| 5    | $xx   | Number of 8KB CHR-ROM banks (0 => 1 CHR-RAM bank)
+| 6    | $xx   | Flags 6
+| 7    | $xx   | Flags 7
+| 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (0 => infer 1 bank)
+|      |       | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)
+| 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL)
+|      |       | - iNES 2.0: CHR ROM size extension (bits 0-3), PRG-ROM size extension (bits 4-7)
+| 10   | $xx   | iNES 2.0: PRG-RAM bytes that are not battery packed (bits 0-3), PRG-RAM bytes that are battery packed (bits 4-7)
+| 11   | $xx   | iNES 2.0: CHR-RAM bytes that are not battery packed (bits 0-3), CHR-RAM bytes that are battery packed (bits 4-7)
+| 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL. Bit 1: both
+| 13   | $xx   | iNES 2.0: Vs. arcade system configuration. PPU mode (bits 0-4), Vs. mode (bits 4-7)
+| 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROMs (bits 0-1)
+| 15   | 0     | Reserved
+
+(In byte 10, the 4-bit sizes use a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved) 
+
+Flags 6:
+
+| Bit | Use 
+|-----+---------
+| 0   | Nametable mirroring (0: horizontal / 1: vertical)
+| 1   | Cartridge contains battery-backed PRG-RAM ($6000-7FFF in CPU memory)
+| 2   | Cartridge contains a 512B trainer (placed before PRG data, $7000-$71FF in CPU memory)
+| 3   | Ignore mirroring in bit 0, use 4-screen nametable instead.
+| 4   | \
+| 5   |  |_ Bits 0-3 of mapper number
+| 6   |  |
+| 7   | /
+
+Flags 7:
+
+| Bit | Use 
+|-----+---------
+| 0   | Vs. arcade system
+| 1   | iNES 1.0: hint screen data (8KB, placed after CHR data)
+| 1   | iNES 2.0: PC-10 arcade system
+| 2   | \_ "10" : iNES 2.0 format. Otherwise: iNES 1.0
+| 3   | /
+| 4   | \
+| 5   |  |_ Bits 4-7 of mapper number
+| 6   |  |
+| 7   | /
+
+Some ROMS contain garbage (text) in the bytes 7-15 of the header.
+To detect iNES 2.0, this procedure is recommended:
+- If (byte 7 AND $0C) == $08, and the size encoded in bytes 4, 5 and 9 does not exceed the actual size of the ROM image, then NES 2.0.
+- If (byte 7 AND $0C) == $00, and bytes 12-15 are 0, then iNES.
+- Otherwise, archaic iNES.
+
+Right after the 16-byte header, the ROM file contains:
+
+- A 512B trainer (if enabled in Flags 6, bit 2)
+- The 16KB PRG-ROM banks.
+- The 8KB CHR-ROM banks.
+- The 8KB hint screen data (if enabled in Flags 7, bit 1, in iNES 1.0).
+
+The last 6 bytes of the first PRG-ROM bank contain 3 vectors (addresses):
+
+| Vector  | Bytes       | Use
+|---------+-------------+---------
+| NMI     | $3FFA-$3FFB | Jump to this address after a non-maskable interrupt
+| Reset   | $3FFC-$3FFD | Jump to this address after a reset (and on boot)
+| IRQ/BRK | $3FFE-$3FFF | Jump to this address after an interrupt request or a BRK/PHP opcode
+
+The file contains at least two PRG-ROM banks.
+Games with 16KB of PRG-ROM (such as Donkey Kong, which uses mapper 0) have their first 16KB filled with 0 (except the last 6 bytes),
+and the next 16KB contain the game's code. In that case, the CPU memory mirrors the second bank ($C000-$FFFF) in the first ($8000-$BFFF).
+
+
+III. CPU
+--------
+
+CPU memory Map
+
+| Address     | Size  | Device
+|-------------+-------+------------------------
+| $0000-$07FF | $0800 | 2KB internal RAM:
+| $0000-$000F | $000F | - Zero page
+| $0010-$00FF | $00F0 | - Global variables
+| $0100-$019F | $00A0 | - Next VBlank's nametable data
+| $01A0-$01FF | $0060 | - Stack
+| $0200-$02FF | $0100 | - Next VBlank's OAM data
+| $0300-$03FF | $0100 | - Sound / misc
+| $0400-$07FF | $0400 | - Arrays / misc
+|- - - - - - -+- - - -+- - - - - - - - - - - -
+| $0800-$0FFF | $0800 | mirror of $0000-$07FF
+| $1000-$17FF | $0800 | mirror of $0000-$07FF
+| $1800-$1FFF | $0800 | mirror of $0000-$07FF
+|-------------+-------+-----------------------
+| $2000-$2007 | $0008 | PPU I/O registers
+|- - - - - - -+- - - -+- - - - - - - - - - - -
+| $2008-$3FFF | $1FF8 | mirrors of $2000-$2007 (every 8 bytes)
+|-------------+-------+-----------------------
+| $4000-$4017 | $0018 | APU I/O registers
+| $4018-$401F | $0008 | APU I/O functionality normally disabled
+|-------------+-------+-----------------------
+| $4020-$FFFF | $BFE0 | Cartridge space:
+| $4020-$5FFF | $1FE0 | - Expansion ROM (used as ROM/RAM/extra registers by some mappers)
+| $6000-$7FFF | $2000 | - PRG-RAM (if any)
+| $7000-$71FF | $01FF | - trainer (if any)   => .nes file $0010-$020F
+| $8000-$BFFF | $8000 | - PRG-ROM low page   => .nes file $0010-$400F for 32KB games. Mirror of high page for 16KB games. Mapped bank for games > 32KB.
+| $C000-$FFFF | $8000 | - PRG-ROM high page  => .nes file $4010-$800F
+| $FFFA-$FFFB | $0002 | - NMI vector         => .nes file $800A-$800B
+| $FFFC-$FFFD | $0002 | - Reset vector       => .nes file $800C-$800D
+| $FFFE-$FFFF | $0002 | - IRQ/BRK vector     => .nes file $800E-$800F
+
+Registers:
+
+| Name | Size | Use
+|------+------+--------
+| A    | 1B   | Accumulator
+| X    | 1B   | Index Register X
+| Y    | 1B   | Index Register Y
+| PC   | 2B   | Program Counter
+| S    | 1B   | Stack Pointer (points to the first free byte on the stack)
+| P    | 1B   | Processor Status Register (see Flags below)
+  
+Flags:
+
+| Bit | Name | Use
+|-----+------+--------
+| 0   | C    | Carry
+| 1   | Z    | Zero
+| 2   | I    | IRQ Disable
+| 3   | D    | Decimal Mode (for ADC/SBC opcodes)
+| 4   | B    | Break Flag (0 = IRQ/NMI, 1 = RESET/BRK/PHP)
+| 5   | -    | Not used (Always 1)
+| 6   | V    | Overflow
+| 7   | N    | Negative
+
+Opcodes:
+
+
+
+I/O Map:
+
+  2000h - PPU Control Register 1 (W)
+  2001h - PPU Control Register 2 (W)
+  2002h - PPU Status Register (R)
+  2003h - SPR-RAM Address Register (W)
+  2004h - SPR-RAM Data Register (RW)
+  2005h - PPU Background Scrolling Offset (W2)
+  2006h - VRAM Address Register (W2)
+  2007h - VRAM Read/Write Data Register (RW)
+  4000h - APU Channel 1 (Rectangle) Volume/Decay (W)
+  4001h - APU Channel 1 (Rectangle) Sweep (W)
+  4002h - APU Channel 1 (Rectangle) Frequency (W)
+  4003h - APU Channel 1 (Rectangle) Length (W)
+  4004h - APU Channel 2 (Rectangle) Volume/Decay (W)
+  4005h - APU Channel 2 (Rectangle) Sweep (W)
+  4006h - APU Channel 2 (Rectangle) Frequency (W)
+  4007h - APU Channel 2 (Rectangle) Length (W)
+  4008h - APU Channel 3 (Triangle) Linear Counter (W)
+  4009h - APU Channel 3 (Triangle) N/A (-)
+  400Ah - APU Channel 3 (Triangle) Frequency (W)
+  400Bh - APU Channel 3 (Triangle) Length (W)
+  400Ch - APU Channel 4 (Noise) Volume/Decay (W)
+  400Dh - APU Channel 4 (Noise) N/A (-)
+  400Eh - APU Channel 4 (Noise) Frequency (W)
+  400Fh - APU Channel 4 (Noise) Length (W)
+  4010h - APU Channel 5 (DMC) Play mode and DMA frequency (W)
+  4011h - APU Channel 5 (DMC) Delta counter load register (W)
+  4012h - APU Channel 5 (DMC) Address load register (W)
+  4013h - APU Channel 5 (DMC) Length register (W)
+  4014h - SPR-RAM DMA Register (W)
+  4015h - DMC/IRQ/length counter status/channel enable register (RW)
+  4016h - Joypad #1 (RW)
+  4017h - Joypad #2/APU SOFTCLK (RW)
+
+
+IV. PPU
+-------
+
+PPU memory map:
+
+  0000h-0FFFh   Pattern Table 0 (4K) (256 Tiles)
+  1000h-1FFFh   Pattern Table 1 (4K) (256 Tiles)
+  2000h-23FFh   Name Table 0 and Attribute Table 0 (1K) (32x30 BG Map)
+  2400h-27FFh   Name Table 1 and Attribute Table 1 (1K) (32x30 BG Map)
+  2800h-2BFFh   Name Table 2 and Attribute Table 2 (1K) (32x30 BG Map)
+  2C00h-2FFFh   Name Table 3 and Attribute Table 3 (1K) (32x30 BG Map)
+  3000h-3EFFh   Mirror of 2000h-2EFFh
+  3F00h-3F1Fh   Background and Sprite Palettes (25 entries used)
+  3F20h-3FFFh   Mirrors of 3F00h-3F1Fh
+  
+PPU Registers:
+
+Color palette:
+
+CHR decoding:
+
+V. APU
+------

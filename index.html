@@ -5,7 +5,7 @@
 //  Mini NES emulator
 // ===================
 
-// (The goal is to play a Mapper 0 game like SMB, with no sound, with the fewest JS code possible)
+// (The goal is to play a Mapper 0 game like DK or SMB, with no sound, and with the fewest JS code possible)
 
 
 
@@ -13,11 +13,18 @@
 //  Memory
 // --------
 
-// Memory map:
+// CPU Memory map:
 
 // Address     | Size  | Device
 // ------------|-------|------------------------
-// $0000-$07FF | $0800 | 2KB internal RAM
+// $0000-$07FF | $0800 | 2KB internal RAM:
+// $0000-$000F | $000F | - Zero page
+// $0010-$00FF | $00F0 | - Global variables
+// $0100-$019F | $00A0 | - Next VBlank's nametable data
+// $01A0-$01FF | $0060 | - Stack
+// $0200-$02FF | $0100 | - Next VBlank's OAM data
+// $0300-$03FF | $0100 | - Sound, misc
+// $0400-$07FF | $0400 | - Arrays, misc 
 // $0800-$0FFF | $0800 | mirror of $0000-$07FF
 // $1000-$17FF | $0800 | mirror of $0000-$07FF
 // $1800-$1FFF | $0800 | mirror of $0000-$07FF
@@ -26,15 +33,12 @@
 // $4000-$4017 | $0018 | NES APU and I/O registers
 // $4018-$401F | $0008 | APU and I/O functionality normally disabled
 // $4020-$FFFF | $BFE0 | Cartridge space:
-//                     | - PRG ROM ($8000-$FFFF)
-//                     |  (32kb: .nes file bytes $0010-$800F)
-//                     | - CHR ROM ($6000-$7FFF)
-//                     |   or PRG RAM or VROM
-//                     |  (8kb: .nes file bytes $8010-$A00F)
-//                     | Mapper registers:
-//                     | - NMI vector ($FFFA-$FFFB)
-//                     | - Reset vector ($FFFC-$FFFD)
-//                     | - IRQ/BRK vector ($FFFE-$FFFF)
+// $6000-$7FFF | $2000 | - CHR ROM / PRG RAM / VROM => .nes file bytes $8010-$A00F
+// $8000-$FFFF | $8000 | - PRG ROM ($8000-$FFFF) => .nes file bytes $0010-$800F
+// $FFFA-$FFFF | $0006 | - Mapper registers:
+// $FFFA-$FFFB | $0002 |   * NMI vector => .nes file bytes $800A-$800B
+// $FFFC-$FFFD | $0002 |   * Reset vector => .nes file bytes $800C-$800D
+// $FFFE-$FFFF | $0002 |   * IRQ/BRK vector => .nes file bytes $800E-$800F
 
 mem = [];
 
