@@ -127,13 +127,13 @@ CPU memory Map
 | $0300-$03FF | $0100 | - Sound / misc
 | $0400-$07FF | $0400 | - Arrays / misc
 |- - - - - - -+- - - -+- - - - - - - - - - - -
-| $0800-$0FFF | $0800 | mirror of $0000-$07FF
-| $1000-$17FF | $0800 | mirror of $0000-$07FF
-| $1800-$1FFF | $0800 | mirror of $0000-$07FF
+| $0800-$0FFF | $0800 | Mirror of $0000-$07FF
+| $1000-$17FF | $0800 | Mirror of $0000-$07FF
+| $1800-$1FFF | $0800 | Mirror of $0000-$07FF
 |-------------+-------+-----------------------
 | $2000-$2007 | $0008 | PPU I/O registers
 |- - - - - - -+- - - -+- - - - - - - - - - - -
-| $2008-$3FFF | $1FF8 | mirrors of $2000-$2007 (every 8 bytes)
+| $2008-$3FFF | $1FF8 | Mirrors of $2000-$2007 (every 8 bytes)
 |-------------+-------+-----------------------
 | $4000-$4017 | $0018 | APU I/O registers
 | $4018-$401F | $0008 | APU I/O functionality normally disabled
@@ -142,23 +142,34 @@ CPU memory Map
 | $4020-$5FFF | $1FE0 | - Expansion ROM (used as ROM/RAM/extra registers by some mappers)
 | $6000-$7FFF | $2000 | - PRG-RAM (if any)
 | $7000-$71FF | $01FF | - trainer (if any)   => .nes file $0010-$020F
-| $8000-$BFFF | $8000 | - PRG-ROM low page   => .nes file $0010-$400F for 32KB games. Mirror of high page for 16KB games. Mapped bank for games > 32KB.
-| $C000-$FFFF | $8000 | - PRG-ROM high page  => .nes file $4010-$800F
+| $8000-$BFFF | $8000 | - PRG-ROM low page   => .nes file $0010-$400F (*)
+| $C000-$FFFF | $8000 | - PRG-ROM high page  => .nes file $4010-$800F (*)
 | $FFFA-$FFFB | $0002 | - NMI vector         => .nes file $800A-$800B
 | $FFFC-$FFFD | $0002 | - Reset vector       => .nes file $800C-$800D
 | $FFFE-$FFFF | $0002 | - IRQ/BRK vector     => .nes file $800E-$800F
 
+(*) The .nes file ranges correspond to a 32KB PRG-ROM.
+16KB games mirror the high page into the low page.
+Games > 32KB use mappers to switch the low and/or high PRG-ROM bank with other banks on the cartridge.
+Some mappers fix a bank or a part of a bank in memory. The fixed addresses keep the same values after a bank switch.
+
 Registers:
 
-| Name | Size | Use
-|------+------+--------
-| A    | 1B   | Accumulator
-| X    | 1B   | Index Register X
-| Y    | 1B   | Index Register Y
-| PC   | 2B   | Program Counter
-| S    | 1B   | Stack Pointer (points to the first free byte on the stack)
-| P    | 1B   | Processor Status Register (see Flags below)
-  
+| Name | Size | value on start | Value on reset | Use
+|------+------+----------------+----------------+------------
+| A    | 1B   | 0              | unchanged      | Accumulator
+| X    | 1B   | 0              | unchanged      | Index Register X
+| Y    | 1B   | 0              | unchanged      | Index Register Y
+| PC   | 2B   | [$FFFC-$FFFD]  | [$FFFC-$FFFD]  | Program Counter
+| S    | 1B   | $FD            | S -= 3         | Stack Pointer (*)
+| P    | 1B   | $34            | P = P OR $04   | Processor Status Register (see Flags below)
+
+(*)
+S decrements on push and increments on pull.
+Contrary to many other systems, it points to the first FREE byte on the stack.
+It doesn't have any overflow/underflow protection (it wraps between $00 and $FF).
+
+
 Flags:
 
 | Bit | Name | Use
@@ -172,44 +183,112 @@ Flags:
 | 6   | V    | Overflow
 | 7   | N    | Negative
 
-Opcodes:
+Opcodes 0-255:
 
+     | 00       | 01        | 02        | 03        | 04        | 05        | 06        | 07        | 08        | 09        | 0A        | 0B        | 0C        | 0D        | 0E        | 0F        |
++----|----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
+| 00 | BRK      | ORA (d,x) | STP       | SLO (d,x) | NOP d     | ORA d     | ASL d     | SLO d     | PHP       | ORA #i    | ASL       | ANC #i    | NOP a     | ORA a     | ASL a     | SLO a     |
+| 10 | BPL *+d  | ORA (d),y | STP       | SLO (d),y | NOP d,x   | ORA d,x   | ASL d,x   | SLO d,x   | CLC       | ORA a,y   | NOP       | SLO a,y   | NOP a,x   | ORA a,x   | ASL a,x   | SLO a,x   |
+| 20 | JSR a    | AND (d,x) | STP       | RLA (d,x) | BIT d     | AND d     | ROL d     | RLA d     | PLP       | AND #i    | ROL       | ANC #i    | BIT a     | AND a     | ROL a     | RLA a     |
+| 30 | BMI *+d  | AND (d),y | STP       | RLA (d),y | NOP d,x   | AND d,x   | ROL d,x   | RLA d,x   | SEC       | AND a,y   | NOP       | RLA a,y   | NOP a,x   | AND a,x   | ROL a,x   | RLA a,x   |
+| 40 | RTI      | EOR (d,x) | STP       | SRE (d,x) | NOP d     | EOR d     | LSR d     | SRE d     | PHA       | EOR #i    | LSR       | ALR #i    | JMP a     | EOR a     | LSR a     | SRE a     |
+| 50 | BVC *+d  | EOR (d),y | STP       | SRE (d),y | NOP d,x   | EOR d,x   | LSR d,x   | SRE d,x   | CLI       | EOR a,y   | NOP       | SRE a,y   | NOP a,x   | EOR a,x   | LSR a,x   | SRE a,x   |
+| 60 | RTS      | ADC (d,x) | STP       | RRA (d,x) | NOP d     | ADC d     | ROR d     | RRA d     | PLA       | ADC #i    | ROR       | ARR #i    | JMP (a)   | ADC a     | ROR a     | RRA a     |
+| 70 | BVS *+d  | ADC (d),y | STP       | RRA (d),y | NOP d,x   | ADC d,x   | ROR d,x   | RRA d,x   | SEI       | ADC a,y   | NOP       | RRA a,y   | NOP a,x   | ADC a,x   | ROR a,x   | RRA a,x   |
+| 80 | NOP #i   | STA (d,x) | NOP #i    | SAX (d,x) | STY d     | STA d     | STX d     | SAX d     | DEY       | NOP #i    | TXA       | XAA #i    | STY a     | STA a     | STX a     | SAX a     |
+| 90 | BCC *+d  | STA (d),y | STP       | AHX (d),y | STY d,x   | STA d,x   | STX d,y   | SAX d,y   | TYA       | STA a,y   | TXS       | TAS a,y   | SHY a,x   | STA a,x   | SHX a,y   | AHX a,y   |
+| A0 | LDY #i   | LDA (d,x) | LDX #i    | LAX (d,x) | LDY d     | LDA d     | LDX d     | LAX d     | TAY       | LDA #i    | TAX       | LAX #i    | LDY a     | LDA a     | LDX a     | LAX a     |
+| B0 | BCS *+d  | LDA (d),y | STP       | LAX (d),y | LDY d,x   | LDA d,x   | LDX d,y   | LAX d,y   | CLV       | LDA a,y   | TSX       | LAS a,y   | LDY a,x   | LDA a,x   | LDX a,y   | LAX a,y   |
+| C0 | CPY #i   | CMP (d,x) | NOP #i    | DCP (d,x) | CPY d     | CMP d     | DEC d     | DCP d     | INY       | CMP #i    | DEX       | AXS #i    | CPY a     | CMP a     | DEC a     | DCP a     |
+| D0 | BNE *+d  | CMP (d),y | STP       | DCP (d),y | NOP d,x   | CMP d,x   | DEC d,x   | DCP d,x   | CLD       | CMP a,y   | NOP       | DCP a,y   | NOP a,x   | CMP a,x   | DEC a,x   | DCP a,x   |
+| E0 | CPX #i   | SBC (d,x) | NOP #i    | ISC (d,x) | CPX d     | SBC d     | INC d     | ISC d     | INX       | SBC #i    | NOP       | SBC #i    | CPX a     | SBC a     | INC a     | ISC a     |
+| F0 | BEQ *+d  | SBC (d),y | STP       | ISC (d),y | NOP d,x   | SBC d,x   | INC d,x   | ISC d,x   | SED       | SBC a,y   | NOP       | ISC a,y   | NOP a,x   | SBC a,x   | INC a,x   | ISC a,x   |
+
+
+Addressing modes:
+
+Indexed:
+
+| Abbr  |	Name 	            | Formula 	                                                          | Cycles |
+|-------+-------------------+---------------------------------------------------------------------+--------|
+| d,x   |	Zero page indexed | val = PEEK((arg + X) % 256)                                         | 4      |
+| d,y   |	Zero page indexed | val = PEEK((arg + Y) % 256)                                         | 4      |
+| a,x   |	Absolute indexed  | val = PEEK(arg + X) 	                                              | 4+     |
+| a,y   |	Absolute indexed  | val = PEEK(arg + Y)                                                 | 4+     |
+| (d,x) | Indexed indirect  | val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256) | 6      |
+| (d),y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y) 	          | 5+     |
+
+(+) means that a cycle is added on write or page wrapping
+
+Other:
+
+| Abbr  |	Name 	      | Notes
+|-------+-------------+----------
+|       | Implicit    | No address operand, destination of results is implied. (ex: RTS, CLC)
+| A     | Accumulator |	Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A)
+| #v 	  | Immediate   | Use the next 8-bit operand rather than fetching a value from memory
+| d     | Zero page   | Fetch the value from an 8-bit address on the zero page
+| a     | Absolute    | Fetch the value from a 16-bit address anywhere in memory
+| label | Relative    | Use a 8-bit signed offset relative to the current PC (ex: BEQ, BCS)
+| (a)   | Indirect    | Use an address stored in a 16-bit pointer anywhere in memory (ex: JMP)
 
 
 I/O Map:
 
-  2000h - PPU Control Register 1 (W)
-  2001h - PPU Control Register 2 (W)
-  2002h - PPU Status Register (R)
-  2003h - SPR-RAM Address Register (W)
-  2004h - SPR-RAM Data Register (RW)
-  2005h - PPU Background Scrolling Offset (W2)
-  2006h - VRAM Address Register (W2)
-  2007h - VRAM Read/Write Data Register (RW)
-  4000h - APU Channel 1 (Rectangle) Volume/Decay (W)
-  4001h - APU Channel 1 (Rectangle) Sweep (W)
-  4002h - APU Channel 1 (Rectangle) Frequency (W)
-  4003h - APU Channel 1 (Rectangle) Length (W)
-  4004h - APU Channel 2 (Rectangle) Volume/Decay (W)
-  4005h - APU Channel 2 (Rectangle) Sweep (W)
-  4006h - APU Channel 2 (Rectangle) Frequency (W)
-  4007h - APU Channel 2 (Rectangle) Length (W)
-  4008h - APU Channel 3 (Triangle) Linear Counter (W)
-  4009h - APU Channel 3 (Triangle) N/A (-)
-  400Ah - APU Channel 3 (Triangle) Frequency (W)
-  400Bh - APU Channel 3 (Triangle) Length (W)
-  400Ch - APU Channel 4 (Noise) Volume/Decay (W)
-  400Dh - APU Channel 4 (Noise) N/A (-)
-  400Eh - APU Channel 4 (Noise) Frequency (W)
-  400Fh - APU Channel 4 (Noise) Length (W)
-  4010h - APU Channel 5 (DMC) Play mode and DMA frequency (W)
-  4011h - APU Channel 5 (DMC) Delta counter load register (W)
-  4012h - APU Channel 5 (DMC) Address load register (W)
-  4013h - APU Channel 5 (DMC) Length register (W)
-  4014h - SPR-RAM DMA Register (W)
-  4015h - DMC/IRQ/length counter status/channel enable register (RW)
-  4016h - Joypad #1 (RW)
-  4017h - Joypad #2/APU SOFTCLK (RW)
+| Address | Use
+|---------+----------
+| 2000h   | PPU Control Register 1 (W)
+| 2001h   | PPU Control Register 2 (W)
+| 2002h   | PPU Status Register (R)
+| 2003h   | SPR-RAM Address Register (W)
+| 2004h   | SPR-RAM Data Register (RW)
+| 2005h   | PPU Background Scrolling Offset (W2)
+| 2006h   | VRAM Address Register (W2)
+| 2007h   | VRAM Read/Write Data Register (RW)
+| 4000h   | APU Channel 1 (Rectangle) Volume/Decay (W)
+| 4001h   | APU Channel 1 (Rectangle) Sweep (W)
+| 4002h   | APU Channel 1 (Rectangle) Frequency (W)
+| 4003h   | APU Channel 1 (Rectangle) Length (W)
+| 4004h   | APU Channel 2 (Rectangle) Volume/Decay (W)
+| 4005h   | APU Channel 2 (Rectangle) Sweep (W)
+| 4006h   | APU Channel 2 (Rectangle) Frequency (W)
+| 4007h   | APU Channel 2 (Rectangle) Length (W)
+| 4008h   | APU Channel 3 (Triangle) Linear Counter (W)
+| 4009h   | APU Channel 3 (Triangle) N/A (-)
+| 400Ah   | APU Channel 3 (Triangle) Frequency (W)
+| 400Bh   | APU Channel 3 (Triangle) Length (W)
+| 400Ch   | APU Channel 4 (Noise) Volume/Decay (W)
+| 400Dh   | APU Channel 4 (Noise) N/A (-)
+| 400Eh   | APU Channel 4 (Noise) Frequency (W)
+| 400Fh   | APU Channel 4 (Noise) Length (W)
+| 4010h   | APU Channel 5 (DMC) Play mode and DMA frequency (W)
+| 4011h   | APU Channel 5 (DMC) Delta counter load register (W)
+| 4012h   | APU Channel 5 (DMC) Address load register (W)
+| 4013h   | APU Channel 5 (DMC) Length register (W)
+| 4014h   | SPR-RAM DMA Register (W)
+| 4015h   | DMC/IRQ/length counter status/channel enable register (RW)
+| 4016h   | Joypad #1 (RW)
+| 4017h   | Joypad #2/APU SOFTCLK (RW)
+
+Interrupts:
+
+- IRQ (maskable interrupt) are triggered by certain mappers and BRK instructions.
+  They are ignored if the flag I is set.
+- NMI (non-maskable interrupt) are triggered by the PPU when a VBlank occurs at the end of each frame.
+  They can't be ignored but can be disabled in the PPU Control Register 1.
+- Reset interrupts are triggered by starting or resetting the system.
+
+In case of conflict, the priority is given to reset, then NMI, then IRQ.
+
+When an interrupt occurs, the system must:
+- Detect the interrupt request.
+- Complete execution of the current instruction.
+- Push PC and P on to the stack.
+- Set the interrupt disable flag to prevent further interrupts.
+- Load the address of the interrupt handling routine from the vector table ($FFFA-$FFFF) into PC.
+- Execute the interrupt handling routine (7 CPU cycles after the interrupt).
+- After executing a RTI (Return From Interrupt) instruction, pull PC and P from the stack.
+- Resume execution of the program.
 
 
 IV. PPU
@@ -231,7 +310,124 @@ PPU Registers:
 
 Color palette:
 
+| #  | RGB Value   | #  | RGB Value 
+|----+----------   |----+----------
+| 00 | #757575     | 20 | #FFFFFF
+| 01 | #271B8F     | 21 | #3FBFFF
+| 02 | #0000AB     | 22 | #5F97FF
+| 03 | #47009F     | 23 | #A78BFD
+| 04 | #8F0077     | 24 | #F77BFF
+| 05 | #AB0013     | 25 | #FF77B7
+| 06 | #A70000     | 26 | #FF7763
+| 07 | #7F0B00     | 27 | #FF9B3B
+| 08 | #432F00     | 28 | #F3BF3F
+| 09 | #004700     | 29 | #83D313
+| 0A | #005100     | 2A | #4FDF4B
+| 0B | #003F17     | 2B | #58F898
+| 0C | #1B3F5F     | 2C | #00EBDB
+| 0D | #000000     | 2D | #000000
+| 0E | #000000     | 2E | #000000
+| 0F | #000000     | 2F | #000000
+| 10 | #BCBCBC     | 30 | #FFFFFF
+| 11 | #0073EF     | 31 | #ABE7FF
+| 12 | #233BEF     | 32 | #C7D7FF
+| 13 | #8300F3     | 33 | #D7CBFF
+| 14 | #BF00BF     | 34 | #FFC7FF
+| 15 | #E7005B     | 35 | #FFC7DB
+| 16 | #DB2B00     | 36 | #FFBFB3
+| 17 | #CB4F0F     | 37 | #FFDBAB
+| 18 | #8B7300     | 38 | #FFE7A3
+| 19 | #009700     | 39 | #E3FFA3
+| 1A | #00AB00     | 3A | #ABF3BF
+| 1B | #00933B     | 3B | #B3FFCF
+| 1C | #00838B     | 3C | #9FFFF3
+| 1D | #000000     | 3D | #000000
+| 1E | #000000     | 3E | #000000
+| 1F | #000000     | 3F | #000000
+
 CHR decoding:
+
+- Read 8 bytes, make a grid of 8x8 bits with it.
+- Read another 8 bytes, make another grid of 8x8 bits with it.
+- Add the 2 grids.
+- the resulting grid represents a char (sprite). Its values (between 0 and 3) represent the 4-color palette index to use for each pixel.
+
 
 V. APU
 ------
+
+[Audio specs, TODO]
+
+VI. Mappers
+-----------
+
+While hundreds of mappers exist, about 75% of games use mappers 0 to 4, described here:
+("window" designs the amount of ROM/RAM that is bankswitched)
+
+Mapper 0: no mapper
+
+- PRG-ROM: 16/32KB ($8000-$FFFF)
+- PRG-RAM: 0/2/4KB ($6000-$7FFF, mirrored to fill the whole 8KB)
+- CHR-ROM: 8KB (PPU $0000-1FFF)
+- Name table mirroring: vertical or horizontal (hardwired)
+
+---
+
+Mapper 1: MMC1
+
+- PRG-ROM: up to 512KB
+ * 16KB fixed or window at $8000-$FFFF (initially first bank)
+ * 16KB fixed or window at $C000-$FFFF (initially last bank)
+- PRG-RAM: up to 32KB (8KB window at $6000-$7FFF)
+- CHR-ROM: up to 128KB (4/8KB windows at PPU $000-$0FFF and/or PPU $1000-$1FFF)
+- Name table mirroring: 1-screen / horizontal / vertical (programmable)
+
+Registers:
+
+Load Register ($8000-$FFFF. That means: any write to $8000-$FFFF affects this register)
+- Bit 0: data to shift and write on the control register until 5 bits are written
+- Bit 7: reset the load register (LR = 0) and control register ( CR |= $0C)
+
+5 consecutive writes on the load register are required to modify the control register:
+- Write #1: bit 7 is set, both registers are reset. Bit 0 of load register is written in bit 0 of control register.
+- Write #2: Bit 0 of load register is written in bit 1 of control register.
+- Write #3: Bit 0 of load register is written in bit 2 of control register.
+- Write #4: Bit 0 of load register is written in bit 3 of control register.
+- Write #5: Bit 0 of load register is written in bit 4 of control register.
+
+Control register:
+- Bits 0-1: Nametable mirroring (0: one-screen, lower bank / 1: one-screen, upper bank / 2: vertical / 3: horizontal)
+- Bits 2-3: PRG-ROM bank mode (0 or 1: switch 32 KB at once / 2: fix bank at $8000 and switch bank at $C000 / 3: fix bank at $C000 and switch bank at $8000)
+- Bit 4: CHR-ROM bank mode (0: switch 8 KB at once / 1: switch two separate 4 KB banks)
+
+Once the control register is set, 3 new registers allow to switch CHR or PRG banks:
+
+CHR bank 0 ($A000-$BFFF): bits 0-4 select the 4 or 8KB bank accessible at PPU $0000 (bit 0 ignored in 8KB mode).
+
+CHR bank 1 ($C000-$DFFF): bits 0-4 select the 4KB bank accessible at PPU $1000 (ignored in 8 KB mode).
+
+PRG bank ($E000-$FFFF):
+- bits 0-4 select the 16 or 32KB bank accessible at PPU $0000 (bit 0 ignored in 32KB mode).
+- bit 5: 0: enable the PRG-RAM chip / 1: disable it
+
+---
+
+Mapper 2: UNROM
+
+- PRG-ROM: 128/256KB PRG-ROM
+ * 16KB window at $8000-$FFFF (initially first bank)
+ * 16KB fixed at $C000-$FFFF (last bank)
+- 8KB CHR-ROM
+
+Mapper 3: CNROM
+
+- 32KB PRG-ROM
+- Switchable 8KB CHR-ROM (VROM) (initially first bank)
+
+Mapper 4: MMC3
+
+- Up to 128K PRG-ROM
+- Up to 256b CHR-ROM or 8KB CHR-RAM
+- Up to 8KB WRAM
+- Hardwired mirroring or 4-screen mirroring
+- Hardwired mirroring or 4-screen mirroring (depending in the games)
