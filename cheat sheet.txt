@@ -7,15 +7,17 @@
 I. Physical cartridge (Game PAK)
 --------------------------------
 
-Cartridges contain ROM and RAM chips:
+Cartridges contain ROM and RAM banks:
 
-| Banks   | Size   | Number | Use
-|---------+--------+--------+-----------
-| PRG-ROM | 16KB   | 1-4096 | Contains game code and sometimes compressed graphics, read-only
-| PRG-RAM | 2-64KB | 0-1    | Contains persistent save files (battery-backed)
-| CHR-ROM | 8KB    | 0-4096 | Contains game graphics, read-only, also called VROM
-| CHR-RAM | 8KB    | 0-1    | Contains graphics decompressed at runtime
-| VRAM    | 2KB    | 0-1    | Adds 2 screens of nametable memory to the PPU
++---------+--------+--------+-----------------------------------------------------+
+| Banks   | Size   | Number | Use                                                 |
++---------+--------+--------+-----------------------------------------------------+
+| PRG-ROM | 16KB   | 1-4096 | Game code, sometimes compressed graphics (R)        |
+| PRG-RAM | 2-64KB | 0-1    | Persistent save slot (battery-backed) (R/W)         |
+| CHR-ROM | 8KB    | 0-4096 | Game graphics, also called VROM (R)                 |
+| CHR-RAM | 8KB    | 0-1    | Game graphics decompressed at runtime (R/W)         |
+| VRAM    | 2KB    | 0-1    | Adds 2 screens of nametable memory to the PPU (R/W) |
++---------+--------+--------+-----------------------------------------------------+
 
 The CPU can only address 32KB of PRG-ROM/RAM and 8KB of CHR-ROM/RAM at once, which is enough for many games.
 Bigger games perform bank switching to access different parts of ROM/RAM at runtime.
@@ -27,166 +29,185 @@ Cartridges always contain at least one CHR bank (ROM or RAM), sometimes both.
 Cartridges soldering also define if the nametable mirroring is vertical or horizontal (unless it's extended by VRAM).
 
 
-II. iNES ROM FILE
------------------
+II. iNES ROM file format
+------------------------
 
 Two versions of this file format exist (1.0 and 2.0), their similarities and differences are described below.
-Multi-bytes values are encoded in big-endian.
 
 Header (bytes 0-15):
 
-| Byte | Value | Use
-|------+-------+----------
-| 0    | $4E   | "N" 
-| 1    | $45   | "E" 
-| 2    | $53   | "S" 
-| 3    | $1A   | <EOF>
-| 4    | $xx   | Number of 16KB PRG-ROM banks
-| 5    | $xx   | Number of 8KB CHR-ROM banks (0 => 1 CHR-RAM bank)
-| 6    | $xx   | Flags 6
-| 7    | $xx   | Flags 7
-| 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (0 => infer 1 bank)
-|      |       | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)
-| 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL)
-|      |       | - iNES 2.0: CHR ROM size extension (bits 0-3), PRG-ROM size extension (bits 4-7)
-| 10   | $xx   | iNES 2.0: PRG-RAM bytes that are not battery packed (bits 0-3), PRG-RAM bytes that are battery packed (bits 4-7)
-| 11   | $xx   | iNES 2.0: CHR-RAM bytes that are not battery packed (bits 0-3), CHR-RAM bytes that are battery packed (bits 4-7)
-| 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL. Bit 1: both
-| 13   | $xx   | iNES 2.0: Vs. arcade system configuration. PPU mode (bits 0-4), Vs. mode (bits 4-7)
-| 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROMs (bits 0-1)
-| 15   | 0     | Reserved
++------+-------+-------------------------------------------------------------------------------------+
+| Byte | Value | Use                                                                                 |
++------+-------+-------------------------------------------------------------------------------------+
+| 0    | $4E   | "N" char                                                                            |
+| 1    | $45   | "E" char                                                                            |
+| 2    | $53   | "S" char                                                                            |
+| 3    | $1A   | <EOF> char                                                                          |
+| 4    | $xx   | Number of 16KB PRG-ROM banks                                                        |
+| 5    | $xx   | Number of 8KB CHR-ROM banks (0 => 1 CHR-RAM bank)                                   |
+| 6    | $xx   | Flags 6                                                                             |
+| 7    | $xx   | Flags 7                                                                             |
+| 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (0 => add 1 bank for better compatibility)  |
+|      |       | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)             |
+| 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL)                                            |
+|      |       | - iNES 2.0: CHR ROM size extension (bits 0-3), PRG-ROM size extension (bits 4-7)    |
+| 10   | $xx   | iNES 2.0: PRG-RAM NOT battery-packed (bits 0-3) / battery-packed (bits 4-7) (*)     |
+| 11   | $xx   | iNES 2.0: CHR-RAM NOT battery-packed (bits 0-3) / battery-packed (bits 4-7) (*)     |
+| 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL. Bit 1: both                                            |
+| 13   | $xx   | iNES 2.0: Vs. arcade system configuration. PPU mode (bits 0-4), Vs. mode (bits 4-7) |
+| 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROMs (bits 0-1)                               |
+| 15   | 0     | Reserved                                                                            |
++------+-------+-------------------------------------------------------------------------------------+
 
-(In byte 10, the 4-bit sizes use a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved) 
+(*) The 4-bit size (N) uses a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved.
 
 Flags 6:
 
-| Bit | Use 
-|-----+---------
-| 0   | Nametable mirroring (0: horizontal / 1: vertical)
-| 1   | Cartridge contains battery-backed PRG-RAM ($6000-7FFF in CPU memory)
-| 2   | Cartridge contains a 512B trainer (placed before PRG data, $7000-$71FF in CPU memory)
-| 3   | Ignore mirroring in bit 0, use 4-screen nametable instead.
-| 4   | \
-| 5   |  |_ Bits 0-3 of mapper number
-| 6   |  |
-| 7   | /
++-----+------------------------------------------------------------+
+| Bit | Use                                                        |
++-----+------------------------------------------------------------+
+| 0   | Nametable mirroring (0: horizontal / 1: vertical)          |
+| 1   | Cartridge contains battery-backed PRG-RAM ($6000-$7FFF)    |
+| 2   | Cartridge contains a 512B trainer ($7000-$71FF)            |
+| 3   | Ignore mirroring in bit 0, use 4-screen nametable instead. |
+| 4   | \                                                          |
+| 5   |  |_ Bits 0-3 of mapper number                              |
+| 6   |  |                                                         |
+| 7   | /                                                          |
++-----+------------------------------------------------------------+
 
 Flags 7:
 
-| Bit | Use 
-|-----+---------
-| 0   | Vs. arcade system
-| 1   | iNES 1.0: hint screen data (8KB, placed after CHR data)
-| 1   | iNES 2.0: PC-10 arcade system
-| 2   | \_ "10" : iNES 2.0 format. Otherwise: iNES 1.0
-| 3   | /
-| 4   | \
-| 5   |  |_ Bits 4-7 of mapper number
-| 6   |  |
-| 7   | /
++-----+------------------------------------------------------------+
+| Bit | Use                                                        |
++-----+------------------------------------------------------------+
+| 0   | Vs. arcade system                                          |
+| 1   | iNES 1.0: hint screen data (8KB, placed after CHR data)    |
+| 1   | iNES 2.0: PC-10 arcade system                              |
+| 2   | \_ "10" : iNES 2.0 format. Otherwise: iNES 1.0             |
+| 3   | /                                                          |
+| 4   | \                                                          |
+| 5   |  |_ Bits 4-7 of mapper number                              |
+| 6   |  |                                                         |
+| 7   | /                                                          |
++-----+------------------------------------------------------------+
 
-Some ROMS contain garbage (text) in the bytes 7-15 of the header.
-To detect iNES 2.0, this procedure is recommended:
+How to parse the header:
+
+Some ROMS contain garbage (text) in the bytes 7-15 of the header. To detect iNES 2.0, this procedure is recommended:
 - If (byte 7 AND $0C) == $08, and the size encoded in bytes 4, 5 and 9 does not exceed the actual size of the ROM image, then NES 2.0.
 - If (byte 7 AND $0C) == $00, and bytes 12-15 are 0, then iNES.
 - Otherwise, archaic iNES.
 
-Right after the 16-byte header, the ROM file contains:
+---
 
-- A 512B trainer (if enabled in Flags 6, bit 2)
+Right after the header, the ROM file contains:
+
+- A 512B trainer (if enabled in Flags 6, bit 2).
 - The 16KB PRG-ROM banks.
 - The 8KB CHR-ROM banks.
 - The 8KB hint screen data (if enabled in Flags 7, bit 1, in iNES 1.0).
 
 The last 6 bytes of the first PRG-ROM bank contain 3 vectors (addresses):
 
-| Vector  | Bytes       | Use
-|---------+-------------+---------
-| NMI     | $3FFA-$3FFB | Jump to this address after a non-maskable interrupt
-| Reset   | $3FFC-$3FFD | Jump to this address after a reset (and on boot)
-| IRQ/BRK | $3FFE-$3FFF | Jump to this address after an interrupt request or a BRK/PHP opcode
++---------+-------------+---------------------------------------------------+
+| Vector  | Bytes       | Use                                               |
++---------+-------------+---------------------------------------------------+
+| NMI     | $3FFA-$3FFB | Jump here after a non-maskable interrupt          |
+| Reset   | $3FFC-$3FFD | Jump here after a reset (and on boot)             |
+| IRQ/BRK | $3FFE-$3FFF | Jump here after an interrupt request or a BRK/PHP |
++---------+-------------+---------------------------------------------------+
 
 The file contains at least two PRG-ROM banks.
 Games with 16KB of PRG-ROM (such as Donkey Kong, which uses mapper 0) have their first 16KB filled with 0 (except the last 6 bytes),
 and the next 16KB contain the game's code. In that case, the CPU memory mirrors the second bank ($C000-$FFFF) in the first ($8000-$BFFF).
 
-
 III. CPU
 --------
 
-CPU memory Map
+CPU memory map (64KB)
 
-| Address     | Size  | Device
-|-------------+-------+------------------------
-| $0000-$07FF | $0800 | 2KB internal RAM:
-| $0000-$000F | $000F | - Zero page
-| $0010-$00FF | $00F0 | - Global variables
-| $0100-$019F | $00A0 | - Next VBlank's nametable data
-| $01A0-$01FF | $0060 | - Stack
-| $0200-$02FF | $0100 | - Next VBlank's OAM data
-| $0300-$03FF | $0100 | - Sound / misc
-| $0400-$07FF | $0400 | - Arrays / misc
-|- - - - - - -+- - - -+- - - - - - - - - - - -
-| $0800-$0FFF | $0800 | Mirror of $0000-$07FF
-| $1000-$17FF | $0800 | Mirror of $0000-$07FF
-| $1800-$1FFF | $0800 | Mirror of $0000-$07FF
-|-------------+-------+-----------------------
-| $2000-$2007 | $0008 | PPU I/O registers
-|- - - - - - -+- - - -+- - - - - - - - - - - -
-| $2008-$3FFF | $1FF8 | Mirrors of $2000-$2007 (every 8 bytes)
-|-------------+-------+-----------------------
-| $4000-$4017 | $0018 | APU I/O registers
-| $4018-$401F | $0008 | APU I/O functionality normally disabled
-|-------------+-------+-----------------------
-| $4020-$FFFF | $BFE0 | Cartridge space:
-| $4020-$5FFF | $1FE0 | - Expansion ROM (used as ROM/RAM/extra registers by some mappers)
-| $6000-$7FFF | $2000 | - PRG-RAM (if any)
-| $7000-$71FF | $01FF | - trainer (if any)   => .nes file $0010-$020F
-| $8000-$BFFF | $8000 | - PRG-ROM low page   => .nes file $0010-$400F (*)
-| $C000-$FFFF | $8000 | - PRG-ROM high page  => .nes file $4010-$800F (*)
-| $FFFA-$FFFB | $0002 | - NMI vector         => .nes file $800A-$800B
-| $FFFC-$FFFD | $0002 | - Reset vector       => .nes file $800C-$800D
-| $FFFE-$FFFF | $0002 | - IRQ/BRK vector     => .nes file $800E-$800F
++-------------+-------+-------------------------------------------------------+
+| Address     | Size  | Use                                                   |
++-------------+-------+-------------------------------------------------------+
+| $0000-$07FF | $0800 | 2KB internal RAM:                                     |
+| $0000-$000F | $000F | - Zero page                                           |
+| $0010-$00FF | $00F0 | - Global variables                                    |
+| $0100-$019F | $00A0 | - Next VBlank's nametable data                        |
+| $01A0-$01FF | $0060 | - Stack                                               |
+| $0200-$02FF | $0100 | - Next VBlank's OAM data                              |
+| $0300-$03FF | $0100 | - Sound / misc                                        |
+| $0400-$07FF | $0400 | - Arrays / misc                                       |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - -+
+| $0800-$0FFF | $0800 | Mirror of $0000-$07FF                                 |
+| $1000-$17FF | $0800 | Mirror of $0000-$07FF                                 |
+| $1800-$1FFF | $0800 | Mirror of $0000-$07FF                                 |
++-------------+-------+-------------------------------------------------------+
+| $2000-$2007 | $0008 | PPU I/O registers                                     |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - -+
+| $2008-$3FFF | $1FF8 | Mirrors of $2000-$2007 (every 8 bytes)                |
++-------------+-------+-------------------------------------------------------+
+| $4000-$4017 | $0018 | APU I/O registers                                     |
+| $4018-$401F | $0008 | APU I/O functionality normally disabled               |
++-------------+-------+-------------------------------------------------------+
+| $4020-$FFFF | $BFE0 | Cartridge space:                                      |
+| $4020-$5FFF | $1FE0 | - Expansion ROM (some mappers add extra ROM/RAM here) |
+| $6000-$7FFF | $2000 | - PRG-RAM (if any)                                    |
+| $7000-$71FF | $01FF | - trainer (if any)   => .nes file $0010-$020F         |
+| $8000-$BFFF | $8000 | - PRG-ROM low page   => .nes file $0010-$400F (*)     |
+| $C000-$FFFF | $8000 | - PRG-ROM high page  => .nes file $4010-$800F (*)     |
+| $FFFA-$FFFB | $0002 | - NMI vector         => .nes file $800A-$800B (**)    |
+| $FFFC-$FFFD | $0002 | - Reset vector       => .nes file $800C-$800D (**)    |
+| $FFFE-$FFFF | $0002 | - IRQ/BRK vector     => .nes file $800E-$800F (**)    |
++-------------+-------+-------------------------------------------------------+
 
-(*) The .nes file ranges correspond to a 32KB PRG-ROM.
+(*) These values are valid for games that have 32KB of PRG-ROM or less and no trainer.
 16KB games mirror the high page into the low page.
-Games > 32KB use mappers to switch the low and/or high PRG-ROM bank with other banks on the cartridge.
+Games with more than 32KB of PRG-ROM use mappers to switch the low and/or high PRG-ROM bank with other banks on the cartridge.
 Some mappers fix a bank or a part of a bank in memory. The fixed addresses keep the same values after a bank switch.
+
+(**) Like all 16-bit values on the NES, the vectors are encoded in big-endian (Ex: NMI vector = [$F00B] << 8 + [$F00A]).
+
+---
 
 Registers:
 
-| Name | Size | value on start | Value on reset | Use
-|------+------+----------------+----------------+------------
-| A    | 1B   | 0              | unchanged      | Accumulator
-| X    | 1B   | 0              | unchanged      | Index Register X
-| Y    | 1B   | 0              | unchanged      | Index Register Y
-| PC   | 2B   | [$FFFC-$FFFD]  | [$FFFC-$FFFD]  | Program Counter
-| S    | 1B   | $FD            | S -= 3         | Stack Pointer (*)
-| P    | 1B   | $34            | P = P OR $04   | Processor Status Register (see Flags below)
++------+------+----------------+----------------+---------------------------------------+
+| Name | Size | Value on start | Value on reset | Use                                   |
++------+------+----------------+----------------+---------------------------------------+
+| A    | 1B   | 0              | unchanged      | Accumulator                           |
+| X    | 1B   | 0              | unchanged      | Index Register X                      |
+| Y    | 1B   | 0              | unchanged      | Index Register Y                      |
+| PC   | 2B   | [$FFFC-$FFFD]  | [$FFFC-$FFFD]  | Program Counter                       |
+| S    | 1B   | $FD            | S -= 3         | Stack Pointer (*)                     |
+| P    | 1B   | $34            | P = P OR $04   | Processor Status Register (see Flags) |
++------+------+----------------+----------------+---------------------------------------+
 
 (*)
 S decrements on push and increments on pull.
 Contrary to many other systems, it points to the first FREE byte on the stack.
 It doesn't have any overflow/underflow protection (it wraps between $00 and $FF).
 
-
 Flags:
 
-| Bit | Name | Use
-|-----+------+--------
-| 0   | C    | Carry
-| 1   | Z    | Zero
-| 2   | I    | IRQ Disable
-| 3   | D    | Decimal Mode (for ADC/SBC opcodes)
-| 4   | B    | Break Flag (0 = IRQ/NMI, 1 = RESET/BRK/PHP)
-| 5   | -    | Not used (Always 1)
-| 6   | V    | Overflow
-| 7   | N    | Negative
++-----+------+---------------------------------------------+
+| Bit | Name | Use                                         |
++-----+------+---------------------------------------------+
+| 0   | C    | Carry                                       |
+| 1   | Z    | Zero                                        |
+| 2   | I    | IRQ Disable                                 |
+| 3   | D    | Decimal Mode (for ADC/SBC opcodes)          |
+| 4   | B    | Break Flag (0 = IRQ/NMI, 1 = RESET/BRK/PHP) |
+| 5   | -    | Not used (Always 1)                         |
+| 6   | V    | Overflow                                    |
+| 7   | N    | Negative                                    |
++-----+------+---------------------------------------------+
 
 Opcodes 0-255:
 
+     +----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
      | 00       | 01        | 02        | 03        | 04        | 05        | 06        | 07        | 08        | 09        | 0A        | 0B        | 0C        | 0D        | 0E        | 0F        |
-+----|----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
++----+----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
 | 00 | BRK      | ORA (d,x) | STP       | SLO (d,x) | NOP d     | ORA d     | ASL d     | SLO d     | PHP       | ORA #i    | ASL       | ANC #i    | NOP a     | ORA a     | ASL a     | SLO a     |
 | 10 | BPL *+d  | ORA (d),y | STP       | SLO (d),y | NOP d,x   | ORA d,x   | ASL d,x   | SLO d,x   | CLC       | ORA a,y   | NOP       | SLO a,y   | NOP a,x   | ORA a,x   | ASL a,x   | SLO a,x   |
 | 20 | JSR a    | AND (d,x) | STP       | RLA (d,x) | BIT d     | AND d     | ROL d     | RLA d     | PLP       | AND #i    | ROL       | ANC #i    | BIT a     | AND a     | ROL a     | RLA a     |
@@ -203,72 +224,92 @@ Opcodes 0-255:
 | D0 | BNE *+d  | CMP (d),y | STP       | DCP (d),y | NOP d,x   | CMP d,x   | DEC d,x   | DCP d,x   | CLD       | CMP a,y   | NOP       | DCP a,y   | NOP a,x   | CMP a,x   | DEC a,x   | DCP a,x   |
 | E0 | CPX #i   | SBC (d,x) | NOP #i    | ISC (d,x) | CPX d     | SBC d     | INC d     | ISC d     | INX       | SBC #i    | NOP       | SBC #i    | CPX a     | SBC a     | INC a     | ISC a     |
 | F0 | BEQ *+d  | SBC (d),y | STP       | ISC (d),y | NOP d,x   | SBC d,x   | INC d,x   | ISC d,x   | SED       | SBC a,y   | NOP       | ISC a,y   | NOP a,x   | SBC a,x   | INC a,x   | ISC a,x   |
-
++----+----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
 
 Addressing modes:
 
 Indexed:
 
++-------+-------------------+---------------------------------------------------------------------+--------|
 | Abbr  |	Name 	            | Formula 	                                                          | Cycles |
-|-------+-------------------+---------------------------------------------------------------------+--------|
++-------+-------------------+---------------------------------------------------------------------+--------|
 | d,x   |	Zero page indexed | val = PEEK((arg + X) % 256)                                         | 4      |
 | d,y   |	Zero page indexed | val = PEEK((arg + Y) % 256)                                         | 4      |
 | a,x   |	Absolute indexed  | val = PEEK(arg + X) 	                                              | 4+     |
 | a,y   |	Absolute indexed  | val = PEEK(arg + Y)                                                 | 4+     |
 | (d,x) | Indexed indirect  | val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256) | 6      |
 | (d),y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y) 	          | 5+     |
-
++-------+-------------------+---------------------------------------------------------------------+--------|
 (+) means that a cycle is added on write or page wrapping
 
-Other:
+Others:
 
-| Abbr  |	Name 	      | Notes
-|-------+-------------+----------
-|       | Implicit    | No address operand, destination of results is implied. (ex: RTS, CLC)
-| A     | Accumulator |	Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A)
-| #v 	  | Immediate   | Use the next 8-bit operand rather than fetching a value from memory
-| d     | Zero page   | Fetch the value from an 8-bit address on the zero page
-| a     | Absolute    | Fetch the value from a 16-bit address anywhere in memory
-| label | Relative    | Use a 8-bit signed offset relative to the current PC (ex: BEQ, BCS)
-| (a)   | Indirect    | Use an address stored in a 16-bit pointer anywhere in memory (ex: JMP)
++-------+-------------+----------------------------------------------------------------------------+
+| Abbr  |	Name 	      | Use                                                                        |
++-------+-------------+----------------------------------------------------------------------------+
+|       | Implicit    | No address operand, destination of results is implied. (ex: RTS, CLC)      |
+| A     | Accumulator |	Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A) |
+| #v 	  | Immediate   | Use the next 8-bit operand rather than fetching a value from memory        |
+| d     | Zero page   | Fetch the value from an 8-bit address on the zero page                     |
+| a     | Absolute    | Fetch the value from a 16-bit address anywhere in memory                   |
+| label | Relative    | Use a 8-bit signed offset relative to the current PC (ex: BEQ, BCS)        |
+| (a)   | Indirect    | Use an address stored in a 16-bit pointer anywhere in memory (ex: JMP)     |
++-------+-------------+----------------------------------------------------------------------------+
 
 
 I/O Map:
 
-| Address | Use
-|---------+----------
-| 2000h   | PPU Control Register 1 (W)
-| 2001h   | PPU Control Register 2 (W)
-| 2002h   | PPU Status Register (R)
-| 2003h   | SPR-RAM Address Register (W)
-| 2004h   | SPR-RAM Data Register (RW)
-| 2005h   | PPU Background Scrolling Offset (W2)
-| 2006h   | VRAM Address Register (W2)
-| 2007h   | VRAM Read/Write Data Register (RW)
-| 4000h   | APU Channel 1 (Rectangle) Volume/Decay (W)
-| 4001h   | APU Channel 1 (Rectangle) Sweep (W)
-| 4002h   | APU Channel 1 (Rectangle) Frequency (W)
-| 4003h   | APU Channel 1 (Rectangle) Length (W)
-| 4004h   | APU Channel 2 (Rectangle) Volume/Decay (W)
-| 4005h   | APU Channel 2 (Rectangle) Sweep (W)
-| 4006h   | APU Channel 2 (Rectangle) Frequency (W)
-| 4007h   | APU Channel 2 (Rectangle) Length (W)
-| 4008h   | APU Channel 3 (Triangle) Linear Counter (W)
-| 4009h   | APU Channel 3 (Triangle) N/A (-)
-| 400Ah   | APU Channel 3 (Triangle) Frequency (W)
-| 400Bh   | APU Channel 3 (Triangle) Length (W)
-| 400Ch   | APU Channel 4 (Noise) Volume/Decay (W)
-| 400Dh   | APU Channel 4 (Noise) N/A (-)
-| 400Eh   | APU Channel 4 (Noise) Frequency (W)
-| 400Fh   | APU Channel 4 (Noise) Length (W)
-| 4010h   | APU Channel 5 (DMC) Play mode and DMA frequency (W)
-| 4011h   | APU Channel 5 (DMC) Delta counter load register (W)
-| 4012h   | APU Channel 5 (DMC) Address load register (W)
-| 4013h   | APU Channel 5 (DMC) Length register (W)
-| 4014h   | SPR-RAM DMA Register (W)
-| 4015h   | DMC/IRQ/length counter status/channel enable register (RW)
-| 4016h   | Joypad #1 (RW)
-| 4017h   | Joypad #2/APU SOFTCLK (RW)
++---------+-----------------------------------------------------+
+| Address | Use                                                 |
++---------+-----------------------------------------------------+
+| 2000h   | PPU Control Register 1 (W)                          |
+| 2001h   | PPU Control Register 2 (W)                          |
+| 2002h   | PPU Status Register (R)                             |
++---------+-----------------------------------------------------+
+| 2003h   | SPR-RAM Address Register (W)                        |
+| 2004h   | SPR-RAM Data Register (RW)                          |
++---------+-----------------------------------------------------+
+| 2005h   | PPU Background Scrolling Offset (W2)                |
++---------+-----------------------------------------------------+
+| 2006h   | VRAM Address Register (W2)                          |
+| 2007h   | VRAM Read/Write Data Register (RW)                  |
++---------+-----------------------------------------------------+
+| 4000h   | APU Channel 1 (Rectangle) Volume/Decay (W)          |
+| 4001h   | APU Channel 1 (Rectangle) Sweep (W)                 |
+| 4002h   | APU Channel 1 (Rectangle) Frequency (W)             |
+| 4003h   | APU Channel 1 (Rectangle) Length (W)                |
+| 4004h   | APU Channel 2 (Rectangle) Volume/Decay (W)          |
+| 4005h   | APU Channel 2 (Rectangle) Sweep (W)                 |
+| 4006h   | APU Channel 2 (Rectangle) Frequency (W)             |
+| 4007h   | APU Channel 2 (Rectangle) Length (W)                |
+| 4008h   | APU Channel 3 (Triangle) Linear Counter (W)         |
+| 4009h   | APU Channel 3 (Triangle) N/A (-)                    |
+| 400Ah   | APU Channel 3 (Triangle) Frequency (W)              |
+| 400Bh   | APU Channel 3 (Triangle) Length (W)                 |
+| 400Ch   | APU Channel 4 (Noise) Volume/Decay (W)              |
+| 400Dh   | APU Channel 4 (Noise) N/A (-)                       |
+| 400Eh   | APU Channel 4 (Noise) Frequency (W)                 |
+| 400Fh   | APU Channel 4 (Noise) Length (W)                    |
+| 4010h   | APU Channel 5 (DMC) Play mode and DMA frequency (W) |
+| 4011h   | APU Channel 5 (DMC) Delta counter load register (W) |
+| 4012h   | APU Channel 5 (DMC) Address load register (W)       |
+| 4013h   | APU Channel 5 (DMC) Length register (W)             |
++---------+-----------------------------------------------------+
+| 4014h   | SPR-RAM DMA Register (W)                            |
++---------+-----------------------------------------------------+
+| 4015h   | DMC/IRQ/length status/channel enable register (RW)  |
++---------+-----------------------------------------------------+
+| 4016h   | Joypad #1 (RW)                                      |
+| 4017h   | Joypad #2 / APU SOFTCLK (RW)                        |
++---------+-----------------------------------------------------+
+
+---
+
+Joypad registers:
+
+[TODO]
+
+---
 
 Interrupts:
 
@@ -294,63 +335,132 @@ When an interrupt occurs, the system must:
 IV. PPU
 -------
 
-PPU memory map:
+The PPU (Pixel Processing Unit) has access to the game's CHR-ROM and a VRAM to hold fill 32x30 "screens" filled with sprites.
+The viewport (the part that is visible on screen at a given time) is contained in this 4-screen setup:
 
-  0000h-0FFFh   Pattern Table 0 (4K) (256 Tiles)
-  1000h-1FFFh   Pattern Table 1 (4K) (256 Tiles)
-  2000h-23FFh   Name Table 0 and Attribute Table 0 (1K) (32x30 BG Map)
-  2400h-27FFh   Name Table 1 and Attribute Table 1 (1K) (32x30 BG Map)
-  2800h-2BFFh   Name Table 2 and Attribute Table 2 (1K) (32x30 BG Map)
-  2C00h-2FFFh   Name Table 3 and Attribute Table 3 (1K) (32x30 BG Map)
-  3000h-3EFFh   Mirror of 2000h-2EFFh
-  3F00h-3F1Fh   Background and Sprite Palettes (25 entries used)
-  3F20h-3FFFh   Mirrors of 3F00h-3F1Fh
-  
-PPU Registers:
+    0        32       64
+  0 +--------+--------+
+    |        |        |
+    |   1    |    2   |
+    |        |        |
+ 30 +--------+--------+
+    |        |        |
+    |   3    |    4   |
+    |        |        |
+ 60 +--------+--------+
+ 
 
-Color palette:
+PPU memory map (64KB):
 
-| #  | RGB Value   | #  | RGB Value 
-|----+----------   |----+----------
-| 00 | #757575     | 20 | #FFFFFF
-| 01 | #271B8F     | 21 | #3FBFFF
-| 02 | #0000AB     | 22 | #5F97FF
-| 03 | #47009F     | 23 | #A78BFD
-| 04 | #8F0077     | 24 | #F77BFF
-| 05 | #AB0013     | 25 | #FF77B7
-| 06 | #A70000     | 26 | #FF7763
-| 07 | #7F0B00     | 27 | #FF9B3B
-| 08 | #432F00     | 28 | #F3BF3F
-| 09 | #004700     | 29 | #83D313
-| 0A | #005100     | 2A | #4FDF4B
-| 0B | #003F17     | 2B | #58F898
-| 0C | #1B3F5F     | 2C | #00EBDB
-| 0D | #000000     | 2D | #000000
-| 0E | #000000     | 2E | #000000
-| 0F | #000000     | 2F | #000000
-| 10 | #BCBCBC     | 30 | #FFFFFF
-| 11 | #0073EF     | 31 | #ABE7FF
-| 12 | #233BEF     | 32 | #C7D7FF
-| 13 | #8300F3     | 33 | #D7CBFF
-| 14 | #BF00BF     | 34 | #FFC7FF
-| 15 | #E7005B     | 35 | #FFC7DB
-| 16 | #DB2B00     | 36 | #FFBFB3
-| 17 | #CB4F0F     | 37 | #FFDBAB
-| 18 | #8B7300     | 38 | #FFE7A3
-| 19 | #009700     | 39 | #E3FFA3
-| 1A | #00AB00     | 3A | #ABF3BF
-| 1B | #00933B     | 3B | #B3FFCF
-| 1C | #00838B     | 3C | #9FFFF3
-| 1D | #000000     | 3D | #000000
-| 1E | #000000     | 3E | #000000
-| 1F | #000000     | 3F | #000000
++-------------+-------+----------------------------------------------------------+
+| Address     | Size  | Use                                                      |
++-------------+-------+----------------------------------------------------------+
+| $0000-$FFFh | 4KB   | Pattern Table 0 (256 tiles) => .nes file $8010-$810F (*) |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+| $1000-$1FFF | 4KB   | Pattern Table 1 (256 tiles) => .nes file $8110-$820F (*) |
++-------------+-------+----------------------------------------------------------+
+| $2000-$23FF | 1KB   | Name Table 0 + attribute Table 0                         |
+| $2400-$27FF | 1KB   | Name Table 1 + attribute Table 1                         |
+| $2800-$2BFF | 1KB   | Name Table 2 + attribute Table 2 (**)                    |
+| $2C00-$2FFF | 1KB   | Name Table 3 + attribute Table 3 (**)                    |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+| $3000-$3EFF | 3840B | Mirror of $2000-$2EFF                                    |
++-------------+-------+----------------------------------------------------------+
+| $3F00-$3F1F | 32B   | Background and Sprite Palettes                           |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+| $3F20-$3FFF | 224B  | Mirrors of $3F00-$3F1F                                   |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+| $4000-$FFFF | 32MB  | Mirror of $0000-$3FFF                                    |
++-------------+-------+----------------------------------------------------------+
 
-CHR decoding:
+(*) These values are valid for games that have 8KB of CHR-ROM or less.
+Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses. 
+
+(**) The NES only provides 2KB of VRAM.
+Some games provide 2KB of extra VRAM for name tables 2 and 3. These games can hold 4 BG screens in memory at once.
+Without extra VRAM, name tables 2 and 3 are mirrors of name tables 0 and 1, with horizontal mirroring ($2000 = $2400 / $2800 = $2C00) or vertical mirroring ($2000 = $2800 / $2400 = $2C00).
+Some mappers also allow to mirror the first name table four times and use only 1KB of VRAM.
+(Other exotic name table setups exist but are very rare and rely on specific mappers not described here.)
+
+PPU registers: (CPU addresses $2000-$2007 + $4014)
+
+Reading from and writing to PPU memory can be done by using the I/O registers $2006 and $2007 in CPU memory
+
+Full color palette:
+
++----+-----------+   +----+-----------+
+| #  | RGB Value |   | #  | RGB Value |
++----+-----------+   +----+-----------+
+| 00 | #757575   |   | 20 | #FFFFFF   |
+| 01 | #271B8F   |   | 21 | #3FBFFF   |
+| 02 | #0000AB   |   | 22 | #5F97FF   |
+| 03 | #47009F   |   | 23 | #A78BFD   |
+| 04 | #8F0077   |   | 24 | #F77BFF   |
+| 05 | #AB0013   |   | 25 | #FF77B7   |
+| 06 | #A70000   |   | 26 | #FF7763   |
+| 07 | #7F0B00   |   | 27 | #FF9B3B   |
+| 08 | #432F00   |   | 28 | #F3BF3F   |
+| 09 | #004700   |   | 29 | #83D313   |
+| 0A | #005100   |   | 2A | #4FDF4B   |
+| 0B | #003F17   |   | 2B | #58F898   |
+| 0C | #1B3F5F   |   | 2C | #00EBDB   |
+| 0D | #000000   |   | 2D | #000000   |
+| 0E | #000000   |   | 2E | #000000   |
+| 0F | #000000   |   | 2F | #000000   |
+| 10 | #BCBCBC   |   | 30 | #FFFFFF   |
+| 11 | #0073EF   |   | 31 | #ABE7FF   |
+| 12 | #233BEF   |   | 32 | #C7D7FF   |
+| 13 | #8300F3   |   | 33 | #D7CBFF   |
+| 14 | #BF00BF   |   | 34 | #FFC7FF   |
+| 15 | #E7005B   |   | 35 | #FFC7DB   |
+| 16 | #DB2B00   |   | 36 | #FFBFB3   |
+| 17 | #CB4F0F   |   | 37 | #FFDBAB   |
+| 18 | #8B7300   |   | 38 | #FFE7A3   |
+| 19 | #009700   |   | 39 | #E3FFA3   |
+| 1A | #00AB00   |   | 3A | #ABF3BF   |
+| 1B | #00933B   |   | 3B | #B3FFCF   |
+| 1C | #00838B   |   | 3C | #9FFFF3   |
+| 1D | #000000   |   | 3D | #000000   |
+| 1E | #000000   |   | 3E | #000000   |
+| 1F | #000000   |   | 3F | #000000   |
++----+-----------+   +----+-----------+
+
+At any given time, the NES uses two 16-color palettes: the image palette ($3F00-$3F0F) and the sprite palette ($3F10-$3F1F).
+These palettes contain indexes pointing to the system palette above. The color stored in $3F00 is the one considered as transparent.
+$3F00 is mirrored every 4 bytes, so only 25 different colors  can appear on screen at once.
+
+CHR-ROM decoding:
 
 - Read 8 bytes, make a grid of 8x8 bits with it.
 - Read another 8 bytes, make another grid of 8x8 bits with it.
 - Add the 2 grids.
-- the resulting grid represents a char (sprite). Its values (between 0 and 3) represent the 4-color palette index to use for each pixel.
+- the resulting grid represents a char. Its values represent the 2 low bytes of the color index to use for each pixel.
+
+Name / attribute tables:
+
+Each KB of VROM contains:
+- a matrix of 32x30 tiles picked from a pattern table. (960B = 1B per tile)
+- a matrix of 8x8 attributes bytes, representing a group of 4x4 tiles. (64KB = 1B per attribute)
+ * In a 4x4 group of tiles, the tiles are numbered from 0 to F and separated in 4 groups of 2x2 tiles (see below)
+ * The attribute byte that represents each group of 4x4 tiles specifies the 2 high bytes of the color index to use for each pixel.
+   (bits 0-1 => group 1 / bits 2-3 => group 2 / bits 4-5 => group 3 / bits 6-7 => group 4)
+
+  group 1   group 2
+ +--------+--------+
+ | 0   1  |  4  5  |
+ |        |        |
+ | 2   3  |  6  7  |
+ +--------+--------+
+ | 8   9  | C   D  |
+ |        |        |
+ | A   B  | E   F  |
+ +--------+--------+
+  group 3   group 4
+
+
+PPU registers:
+
+[TODO]
 
 
 V. APU
@@ -361,10 +471,13 @@ V. APU
 VI. Mappers
 -----------
 
-While hundreds of mappers exist, about 75% of games use mappers 0 to 4, described here:
+While hundreds of mappers exist, ~74% of all games use mappers 0 to 4, described here.
 ("window" designs the amount of ROM/RAM that is bankswitched)
+A simple emulator can handle "mapper 0" games only without any effort.
+A more complete he emulator has to emulate the behavior of mappers 1 to 4 (at least).
+If a game with "mapper 0" weighs more than 40KB, consider it as an unknown mapper.
 
-Mapper 0: no mapper
+Mapper 0: NROM (no mapper) - used by 12.5% of all games
 
 - PRG-ROM: 16/32KB ($8000-$FFFF)
 - PRG-RAM: 0/2/4KB ($6000-$7FFF, mirrored to fill the whole 8KB)
@@ -373,7 +486,7 @@ Mapper 0: no mapper
 
 ---
 
-Mapper 1: MMC1
+Mapper 1: MMC1 - used by 20.3% of all games
 
 - PRG-ROM: up to 512KB
  * 16KB fixed or window at $8000-$FFFF (initially first bank)
@@ -384,7 +497,7 @@ Mapper 1: MMC1
 
 Registers:
 
-Load Register ($8000-$FFFF. That means: any write to $8000-$FFFF affects this register)
+Load Register ($8000-$FFFF. That means: any write to $8000-$FFFF affects this register, but leaves the ROM unchanged)
 - Bit 0: data to shift and write on the control register until 5 bits are written
 - Bit 7: reset the load register (LR = 0) and control register ( CR |= $0C)
 
@@ -396,38 +509,112 @@ Load Register ($8000-$FFFF. That means: any write to $8000-$FFFF affects this re
 - Write #5: Bit 0 of load register is written in bit 4 of control register.
 
 Control register:
-- Bits 0-1: Nametable mirroring (0: one-screen, lower bank / 1: one-screen, upper bank / 2: vertical / 3: horizontal)
+- Bits 0-1: nametable mirroring (0: one-screen, lower bank / 1: one-screen, upper bank / 2: vertical / 3: horizontal)
 - Bits 2-3: PRG-ROM bank mode (0 or 1: switch 32 KB at once / 2: fix bank at $8000 and switch bank at $C000 / 3: fix bank at $C000 and switch bank at $8000)
 - Bit 4: CHR-ROM bank mode (0: switch 8 KB at once / 1: switch two separate 4 KB banks)
 
 Once the control register is set, 3 new registers allow to switch CHR or PRG banks:
 
-CHR bank 0 ($A000-$BFFF): bits 0-4 select the 4 or 8KB bank accessible at PPU $0000 (bit 0 ignored in 8KB mode).
+CHR bank 0 register ($A000-$BFFF): bits 0-4 select the 4 or 8KB bank accessible at PPU $0000 (bit 0 ignored in 8KB mode).
 
-CHR bank 1 ($C000-$DFFF): bits 0-4 select the 4KB bank accessible at PPU $1000 (ignored in 8 KB mode).
+CHR bank 1 register ($C000-$DFFF): bits 0-4 select the 4KB bank accessible at PPU $1000 (ignored in 8 KB mode).
 
-PRG bank ($E000-$FFFF):
+PRG bank register ($E000-$FFFF):
 - bits 0-4 select the 16 or 32KB bank accessible at PPU $0000 (bit 0 ignored in 32KB mode).
 - bit 5: 0: enable the PRG-RAM chip / 1: disable it
 
 ---
 
-Mapper 2: UNROM
+Mapper 2: UxROM - used by 11.2% of all games
 
-- PRG-ROM: 128/256KB PRG-ROM
+- PRG-ROM: 256/4096KB PRG-ROM
  * 16KB window at $8000-$FFFF (initially first bank)
  * 16KB fixed at $C000-$FFFF (last bank)
 - 8KB CHR-ROM
+- Name table mirroring: vertical or horizontal (hardwired)
 
-Mapper 3: CNROM
+Bank select register ($8000-$FFFF): bits 0-3 select the 16KB PRG-ROM bank at $8000-$FFFF
 
-- 32KB PRG-ROM
-- Switchable 8KB CHR-ROM (VROM) (initially first bank)
+---
 
-Mapper 4: MMC3
+Mapper 3: CNROM - used by 7.7% of all games
 
-- Up to 128K PRG-ROM
-- Up to 256b CHR-ROM or 8KB CHR-RAM
+- 16/32KB PRG-ROM
+- 32/2048KB CHR-ROM (8KB window at PPU $000-$1FFF, initially first bank)
+- Name table mirroring: vertical or horizontal (hardwired)
+
+Bank select register ($8000-$FFFF): bits 0-8 select the 16KB PRG-ROM bank at PPU $0000-$1FFF
+
+---
+
+Mapper 4: MMC3 - used by 22.1% of all games
+
+- Up to 512K PRG-ROM
+ * 8KB window at $8000-$9FFF or $C000-$DFFF
+ * 8KB window at $A000-$BFFF
+ * 8KB fixed at $C000-$DFFF or $8000-$9FFF (second-last bank)
+ * 8KB fixed at $E000-$FFFF (last bank)
+- 8KB PRG-RAM at $6000-$7FFF
+- Up to 256b CHR-ROM (2 x 2KB + 4 x 1KB window at PPU $0000-$1FFF) or 8KB CHR-RAM
 - Up to 8KB WRAM
-- Hardwired mirroring or 4-screen mirroring
-- Hardwired mirroring or 4-screen mirroring (depending in the games)
+- Name table mirroring: vertical or horizontal (programmable) or 4-screen in some games
+
+Registers: 
+
+Bank select register ($8000-$9FFE, even addresses):
+- Bits 0-2: select a bank to update:
+ * 0: Select 2 KB CHR bank at PPU $0000-$07FF (or $1000-$17FF if bit 7 is set)
+ * 1: Select 2 KB CHR bank at PPU $0800-$0FFF (or $1800-$1FFF)
+ * 2: Select 1 KB CHR bank at PPU $1000-$13FF (or $0000-$03FF)
+ * 3: Select 1 KB CHR bank at PPU $1400-$17FF (or $0400-$07FF)
+ * 4: Select 1 KB CHR bank at PPU $1800-$1BFF (or $0800-$0BFF)
+ * 5: Select 1 KB CHR bank at PPU $1C00-$1FFF (or $0C00-$0FFF)
+ * 6: Select 8 KB PRG ROM bank at $8000-$9FFF (or $C000-$DFFF)
+ * 7: Select 8 KB PRG ROM bank at $A000-$BFFF
+- Bit 6: PRG ROM bank mode
+ * 0: $8000-$9FFF swappable, $C000-$DFFF fixed to second-last bank
+ * 1: $C000-$DFFF swappable, $8000-$9FFF fixed to second-last bank
+- Bit 7: CHR A12 inversion
+ * 0: two 2 KB banks at $0000-$0FFF, four 1 KB banks at $1000-$1FFF
+ * 1: two 2 KB banks at $1000-$1FFF, four 1 KB banks at $0000-$0FFF
+ 
+Bank data register ($8001-$9FFF, odd addresses): bits 0-5 = new bank value
+
+Mirroring register ($A000-$BFFE, even): bit 0 = nametable mirroring (0: vertical / 1: horizontal), no effect on 4-screen VRAM cartridges.
+
+PRG RAM protect register ($A001-$BFFF, odd addresses): bit 6 = write protection (0: allow / 1: deny), bit 7 = PRG RAM enable.
+Many emulators don't implementing bit 7 to support MMC3 and MMC6 at the same time.
+MMC6 is similar to MMC4 but uses bits 4 to 7 to enable read or write on the first or second half of PRG-RAM ($7000-$71FF / $7200-$73FF).
+
+IRQ latch register ($C000-$DFFE, even addresses): bits 0-7 = IRQ latch value
+When the IRQ counter reaches 0, this latch value will be copied to the IRQ counter at PPU cycle 260 of the current scanline.
+
+IRQ reload register ($C001-$DFFF, odd addresses)
+Writing any value to this register reloads the MMC3 IRQ counter at PPU cycle 260 of the current scanline.
+
+IRQ disable register ($E000-$FFFE, even addresses)
+Writing any value to this register will disable MMC3 interrupts AND acknowledge any pending interrupts.
+
+IRQ enable register ($E001-$FFFF, odd addresses)
+Writing any value to this register will enable MMC3 interrupts.
+
+This mapper has other special behaviors depending on the cartridge revision, but that's beyond my understanding. (to be completed if relevant)
+
+
+V. TV standards
+---------------
+                          +------------+----------+
+                          | NTSC       | PAL      |
++-------------------------+------------+----------+
+| FPS (ms per frame)      | 50 (16.67) | 60 (20)  |
+| Scanlines (VBlank)      | 262 (20)   | 312 (70) |
+| CPU cycles per scanline | 113.33     | 106.56   |
+| Resolution              | 256x224    | 256x240  |
+| CPU speed               | 1.79MHz    | 1.66MHz  |
++-------------------------+------------+----------+
+
+Games TV standard detection:
+
+If a ROM file doesn't contain an iNES 2.0 header, it's impossible to know directly if it's NTSC or PAL, but:
+- The filename can contain "(E)" "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC.
+- The checksum of PRG-RAM and CHR-RAM (combined) can be looked in a NES ROM database like NesCartDB.
