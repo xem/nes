@@ -1,13 +1,12 @@
-==================
- NES architecture
-  cheat sheet
- (for emulators)
-==================
+===============================
+|  NES emulation cheat-sheet  |
+===============================
 
 I. Physical cartridge (Game PAK)
 --------------------------------
 
-Cartridges contain ROM and RAM banks:
+Cartridges always contain at least one PRG-ROM bank and one CHR bank (ROM or RAM).
+Some games contain extra chips to extend the NES processing power or to save the player's progress.
 
 +---------+--------+--------+-----------------------------------------------------+
 | Banks   | Size   | Number | Use                                                 |
@@ -19,22 +18,18 @@ Cartridges contain ROM and RAM banks:
 | VRAM    | 2KB    | 0-1    | Adds 2 screens of nametable memory to the PPU (R/W) |
 +---------+--------+--------+-----------------------------------------------------+
 
-The CPU can only address 32KB of PRG-ROM/RAM and 8KB of CHR-ROM/RAM at once, which is enough for many games.
-Bigger games perform bank switching to access different parts of ROM/RAM at runtime.
-Bank switching is performed by writing on specific I/O registers.
-Banks configuration is defined by a mapper.
-There are many hundreds of different mappers, a handful represent most of the games.
-Cartridges always contain at least one CHR bank (ROM or RAM), sometimes both.
-
-Cartridges soldering also define if the nametable mirroring is vertical or horizontal (unless it's extended by VRAM).
-
+The NES CPU and PPU can only address 32KB of PRG-ROM and 8KB of CHR-ROM at once.
+A lot of games can fit in this size (ex: Super Mario Bros - 40KB).
+Bigger games perform bank switching to access different parts of ROM/RAM when needed.
+Banks setup and switching for each game is defined by a mapper (see VI. Mappers).
+Mappers also define the PPU's nametables' mirroring, or extend them with a VRAM chip (see III. PPU).
+Games are dumped in "ROM" files. the iNES format is described below.
 
 II. iNES ROM file format
 ------------------------
 
-Two versions of this file format exist (1.0 and 2.0), their similarities and differences are described below.
-
-Header (bytes 0-15):
+Two versions of this format exist (1.0 and 2.0), both are described here. They use the extension ".nes".
+The file starts with a 16B header:
 
 +------+-------+-------------------------------------------------------------------------------------+
 | Byte | Value | Use                                                                                 |
@@ -43,59 +38,68 @@ Header (bytes 0-15):
 | 1    | $45   | "E" char                                                                            |
 | 2    | $53   | "S" char                                                                            |
 | 3    | $1A   | <EOF> char                                                                          |
++------+-------+-------------------------------------------------------------------------------------+
 | 4    | $xx   | Number of 16KB PRG-ROM banks                                                        |
-| 5    | $xx   | Number of 8KB CHR-ROM banks (0 => 1 CHR-RAM bank)                                   |
-| 6    | $xx   | Flags 6                                                                             |
-| 7    | $xx   | Flags 7                                                                             |
+| 5    | $xx   | Number of 8KB CHR-ROM banks (if 0 => use 1 CHR-RAM bank)                            |
++------+-------+-------------------------------------------------------------------------------------+
+| 6    | $xx   | Flags 6 (see below)                                                                 |
+| 7    | $xx   | Flags 7 (see below)                                                                 |
++------+-------+-------------------------------------------------------------------------------------+
 | 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (0 => add 1 bank for better compatibility)  |
 |      |       | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)             |
++------+-------+-------------------------------------------------------------------------------------+
 | 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL)                                            |
 |      |       | - iNES 2.0: CHR ROM size extension (bits 0-3), PRG-ROM size extension (bits 4-7)    |
++------+-------+-------------------------------------------------------------------------------------+
 | 10   | $xx   | iNES 2.0: PRG-RAM NOT battery-packed (bits 0-3) / battery-packed (bits 4-7) (*)     |
 | 11   | $xx   | iNES 2.0: CHR-RAM NOT battery-packed (bits 0-3) / battery-packed (bits 4-7) (*)     |
++------+-------+-------------------------------------------------------------------------------------+
 | 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL. Bit 1: both                                            |
++------+-------+-------------------------------------------------------------------------------------+
 | 13   | $xx   | iNES 2.0: Vs. arcade system configuration. PPU mode (bits 0-4), Vs. mode (bits 4-7) |
-| 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROMs (bits 0-1)                               |
++------+-------+-------------------------------------------------------------------------------------+
+| 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROM banks (bits 0-1)                          |
++------+-------+-------------------------------------------------------------------------------------+
 | 15   | 0     | Reserved                                                                            |
 +------+-------+-------------------------------------------------------------------------------------+
 
-(*) The 4-bit size (N) uses a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved.
+(*) In bytes 10 and 11, the 4-bit size (N) uses a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved.
 
 Flags 6:
 
-+-----+------------------------------------------------------------+
-| Bit | Use                                                        |
-+-----+------------------------------------------------------------+
-| 0   | Nametable mirroring (0: horizontal / 1: vertical)          |
-| 1   | Cartridge contains battery-backed PRG-RAM ($6000-$7FFF)    |
-| 2   | Cartridge contains a 512B trainer ($7000-$71FF)            |
-| 3   | Ignore mirroring in bit 0, use 4-screen nametable instead. |
-| 4   | \                                                          |
-| 5   |  |_ Bits 0-3 of mapper number                              |
-| 6   |  |                                                         |
-| 7   | /                                                          |
-+-----+------------------------------------------------------------+
++-----+-------------------------------------------------------------+
+| Bit | Use                                                         |
++-----+-------------------------------------------------------------+
+| 0   | Nametable mirroring (0 => horizontal / 1 => vertical)       |
+| 1   | Cartridge contains battery-backed PRG-RAM (CPU $6000-$7FFF) |
+| 2   | Cartridge contains a 512B trainer (CPU $7000-$71FF)         |
+| 3   | Ignore mirroring in bit 0, use 4-screen nametable instead   |
+| 4   | \                                                           |
+| 5   |  |_ Bits 0-3 of mapper number                               |
+| 6   |  |                                                          |
+| 7   | /                                                           |
++-----+-------------------------------------------------------------+
 
 Flags 7:
 
-+-----+------------------------------------------------------------+
-| Bit | Use                                                        |
-+-----+------------------------------------------------------------+
-| 0   | Vs. arcade system                                          |
-| 1   | iNES 1.0: hint screen data (8KB, placed after CHR data)    |
-| 1   | iNES 2.0: PC-10 arcade system                              |
-| 2   | \_ "10" : iNES 2.0 format. Otherwise: iNES 1.0             |
-| 3   | /                                                          |
-| 4   | \                                                          |
-| 5   |  |_ Bits 4-7 of mapper number                              |
-| 6   |  |                                                         |
-| 7   | /                                                          |
-+-----+------------------------------------------------------------+
++-----+-------------------------------------------------------------+
+| Bit | Use                                                         |
++-----+-------------------------------------------------------------+
+| 0   | Vs. arcade system                                           |
+| 1   | iNES 1.0: hint screen data (8KB, placed after CHR data)     |
+|     | iNES 2.0: PC-10 arcade system                               |
+| 2   | \_ "10" : iNES 2.0 format. Otherwise: iNES 1.0              |
+| 3   | /                                                           |
+| 4   | \                                                           |
+| 5   |  |_ Bits 4-7 of mapper number                               |
+| 6   |  |                                                          |
+| 7   | /                                                           |
++-----+-------------------------------------------------------------+
 
-How to parse the header:
+How to parse the iNES header:
 
-Some ROMS contain garbage (text) in the bytes 7-15 of the header. To detect iNES 2.0, this procedure is recommended:
-- If (byte 7 AND $0C) == $08, and the size encoded in bytes 4, 5 and 9 does not exceed the actual size of the ROM image, then NES 2.0.
+Some ROMS contain garbage (text) in the bytes 7-15 of the header. To detect iNES 2.0 reliably, this procedure is recommended:
+- If (byte 7 AND $0C) == $08, and the size encoded in bytes 4, 5 and 9 does not exceed the file size, then NES 2.0.
 - If (byte 7 AND $0C) == $00, and bytes 12-15 are 0, then iNES.
 - Otherwise, archaic iNES.
 
@@ -105,10 +109,10 @@ Right after the header, the ROM file contains:
 
 - A 512B trainer (if enabled in Flags 6, bit 2).
 - The 16KB PRG-ROM banks.
-- The 8KB CHR-ROM banks.
+- The 8KB CHR-ROM bank(s).
 - The 8KB hint screen data (if enabled in Flags 7, bit 1, in iNES 1.0).
 
-The last 6 bytes of the first PRG-ROM bank contain 3 vectors (addresses):
+The last 6 bytes of the first PRG-ROM bank contain 3 vectors (16-bit addresses):
 
 +---------+-------------+---------------------------------------------------+
 | Vector  | Bytes       | Use                                               |
@@ -118,9 +122,10 @@ The last 6 bytes of the first PRG-ROM bank contain 3 vectors (addresses):
 | IRQ/BRK | $3FFE-$3FFF | Jump here after an interrupt request or a BRK/PHP |
 +---------+-------------+---------------------------------------------------+
 
-The file contains at least two PRG-ROM banks.
-Games with 16KB of PRG-ROM (such as Donkey Kong, which uses mapper 0) have their first 16KB filled with 0 (except the last 6 bytes),
-and the next 16KB contain the game's code. In that case, the CPU memory mirrors the second bank ($C000-$FFFF) in the first ($8000-$BFFF).
+These vectors are encoded in big-endian (Ex: NMI vector = [$F00B] << 8 + [$F00A]).
+
+ROM files with only 16KB of PRG-ROM (Ex: Donkey Kong, using mapper 0) have their first bank filled with 0 and the next 16KB contain the game's code.
+In that case, the CPU memory mirrors the second bank ($C000-$FFFF) into the first ($8000-$BFFF).
 
 III. CPU
 --------
@@ -156,21 +161,19 @@ CPU memory map (64KB)
 | $7000-$71FF | $01FF | - trainer (if any)   => .nes file $0010-$020F         |
 | $8000-$BFFF | $8000 | - PRG-ROM low page   => .nes file $0010-$400F (*)     |
 | $C000-$FFFF | $8000 | - PRG-ROM high page  => .nes file $4010-$800F (*)     |
-| $FFFA-$FFFB | $0002 | - NMI vector         => .nes file $800A-$800B (**)    |
-| $FFFC-$FFFD | $0002 | - Reset vector       => .nes file $800C-$800D (**)    |
-| $FFFE-$FFFF | $0002 | - IRQ/BRK vector     => .nes file $800E-$800F (**)    |
+| $FFFA-$FFFB | $0002 | - NMI vector         => .nes file $800A-$800B         |
+| $FFFC-$FFFD | $0002 | - Reset vector       => .nes file $800C-$800D         |
+| $FFFE-$FFFF | $0002 | - IRQ/BRK vector     => .nes file $800E-$800F         |
 +-------------+-------+-------------------------------------------------------+
 
 (*) These values are valid for games that have 32KB of PRG-ROM or less and no trainer.
-16KB games mirror the high page into the low page.
 Games with more than 32KB of PRG-ROM use mappers to switch the low and/or high PRG-ROM bank with other banks on the cartridge.
 Some mappers fix a bank or a part of a bank in memory. The fixed addresses keep the same values after a bank switch.
-
-(**) Like all 16-bit values on the NES, the vectors are encoded in big-endian (Ex: NMI vector = [$F00B] << 8 + [$F00A]).
+Whatever bankswitch scheme is used, the vector table will always be visible at the addresses $FFFA-$FFFF.
 
 ---
 
-Registers:
+> CPU registers:
 
 +------+------+----------------+----------------+---------------------------------------+
 | Name | Size | Value on start | Value on reset | Use                                   |
@@ -183,12 +186,13 @@ Registers:
 | P    | 1B   | $34            | P = P OR $04   | Processor Status Register (see Flags) |
 +------+------+----------------+----------------+---------------------------------------+
 
-(*)
-S decrements on push and increments on pull.
+(*) The Stack Pointer decrements on push and increments on pull.
 Contrary to many other systems, it points to the first FREE byte on the stack.
-It doesn't have any overflow/underflow protection (it wraps between $00 and $FF).
+It doesn't have any overflow/underflow protection (it just wraps between $00 and $FF).
 
-Flags:
+---
+
+> CPU Flags:
 
 +-----+------+---------------------------------------------+
 | Bit | Name | Use                                         |
@@ -203,7 +207,9 @@ Flags:
 | 7   | N    | Negative                                    |
 +-----+------+---------------------------------------------+
 
-Opcodes 0-255:
+---
+
+> Opcodes 0-255:
 
      +----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
      | 00       | 01        | 02        | 03        | 04        | 05        | 06        | 07        | 08        | 09        | 0A        | 0B        | 0C        | 0D        | 0E        | 0F        |
@@ -226,7 +232,13 @@ Opcodes 0-255:
 | F0 | BEQ *+d  | SBC (d),y | STP       | ISC (d),y | NOP d,x   | SBC d,x   | INC d,x   | ISC d,x   | SED       | SBC a,y   | NOP       | ISC a,y   | NOP a,x   | SBC a,x   | INC a,x   | ISC a,x   |
 +----+----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
 
-Addressing modes:
+Opcodes detail:
+
+TODO
+
+---
+
+> Addressing modes:
 
 Indexed:
 
@@ -240,7 +252,7 @@ Indexed:
 | (d,x) | Indexed indirect  | val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256) | 6      |
 | (d),y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y) 	          | 5+     |
 +-------+-------------------+---------------------------------------------------------------------+--------|
-(+) means that a cycle is added on write or page wrapping
+(+) means that a cycle is added on write or "page wrapping" (?)
 
 Others:
 
@@ -256,8 +268,9 @@ Others:
 | (a)   | Indirect    | Use an address stored in a 16-bit pointer anywhere in memory (ex: JMP)     |
 +-------+-------------+----------------------------------------------------------------------------+
 
+---
 
-I/O Map:
+> I/O Map:
 
 +---------+-----------------------------------------------------+
 | Address | Use                                                 |
@@ -273,6 +286,8 @@ I/O Map:
 +---------+-----------------------------------------------------+
 | 2006h   | VRAM Address Register (W2)                          |
 | 2007h   | VRAM Read/Write Data Register (RW)                  |
++---------+-----------------------------------------------------+
+
 +---------+-----------------------------------------------------+
 | 4000h   | APU Channel 1 (Rectangle) Volume/Decay (W)          |
 | 4001h   | APU Channel 1 (Rectangle) Sweep (W)                 |
@@ -305,13 +320,28 @@ I/O Map:
 
 ---
 
-Joypad registers:
+> Joypads:
 
-[TODO]
+Dozens of different controllers exist, only the standard joypads (for players 1 & 2) are covered here.
+- Writing "1" on port $4016 (bit 0) enables strobe (buttons status request) for both joypads.
+- Then, writing "0" on the same bit allows the CPU to read the buttons statuses sequentially (otherwise, only the first button will be accessible).
+- Then, reading the bit 0 on port $4016 (for joypad 1) or $4017 (for joypad 2) retrieves the status of each button, in this order:
+ * 0: A
+ * 1: B
+ * 2: Select
+ * 3: Start
+ * 4: Up
+ * 5: Down
+ * 6: Left
+ * 7: Right
+ 
+- Value 1 means "pressed", and 0 means "released".
+- Buttons Start and Select are absent on some "joypad 2" controllers and will always return 0.
+- If a joypad is not plugged in, all its buttons will return 0.
 
 ---
 
-Interrupts:
+> Interrupts:
 
 - IRQ (maskable interrupt) are triggered by certain mappers and BRK instructions.
   They are ignored if the flag I is set.
@@ -335,58 +365,67 @@ When an interrupt occurs, the system must:
 IV. PPU
 -------
 
-The PPU (Pixel Processing Unit) has access to the game's CHR-ROM and a VRAM to hold fill 32x30 "screens" filled with sprites.
-The viewport (the part that is visible on screen at a given time) is contained in this 4-screen setup:
+The PPU (Pixel Processing Unit) has access to 8KB of the game's CHR-ROM and has 2KB of VRAM to hold two "screens" filled with 32x30 sprites.
+The viewport (the part that is visible on screen at a given time) can be placed anywhere in this 4-screen setup:
 
     0        32       64
   0 +--------+--------+
     |        |        |
-    |   1    |    2   |
+    |   O    |    1   |
     |        |        |
  30 +--------+--------+
     |        |        |
-    |   3    |    4   |
+    |   2    |    3   |
     |        |        |
  60 +--------+--------+
  
+ 
+The NES only provides 2KB of VRAM.
+Some games provide 2KB of extra VRAM for name tables 2 and 3. These games can hold 4 screens in memory at once.
+Without extra VRAM, name tables 2 and 3 are mirrors of name tables 0 and 1, with horizontal mirroring ($2000 = $2400 / $2800 = $2C00) or vertical mirroring ($2000 = $2800 / $2400 = $2C00).
+Some mappers also allow to mirror the first name table four times and use only 1KB of VRAM.
+(Other exotic name table setups exist but are very rare and rely on specific mappers not described here.)
 
-PPU memory map (64KB):
+> PPU memory map (64KB):
 
 +-------------+-------+----------------------------------------------------------+
 | Address     | Size  | Use                                                      |
 +-------------+-------+----------------------------------------------------------+
 | $0000-$FFFh | 4KB   | Pattern Table 0 (256 tiles) => .nes file $8010-$810F (*) |
-+- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $1000-$1FFF | 4KB   | Pattern Table 1 (256 tiles) => .nes file $8110-$820F (*) |
 +-------------+-------+----------------------------------------------------------+
 | $2000-$23FF | 1KB   | Name Table 0 + attribute Table 0                         |
 | $2400-$27FF | 1KB   | Name Table 1 + attribute Table 1                         |
-| $2800-$2BFF | 1KB   | Name Table 2 + attribute Table 2 (**)                    |
-| $2C00-$2FFF | 1KB   | Name Table 3 + attribute Table 3 (**)                    |
-+- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+| $2800-$2BFF | 1KB   | Name Table 2 + attribute Table 2                         |
+| $2C00-$2FFF | 1KB   | Name Table 3 + attribute Table 3                         |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $3000-$3EFF | 3840B | Mirror of $2000-$2EFF                                    |
 +-------------+-------+----------------------------------------------------------+
 | $3F00-$3F1F | 32B   | Background and Sprite Palettes                           |
-+- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $3F20-$3FFF | 224B  | Mirrors of $3F00-$3F1F                                   |
-+- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
++- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $4000-$FFFF | 32MB  | Mirror of $0000-$3FFF                                    |
 +-------------+-------+----------------------------------------------------------+
 
-(*) These values are valid for games that have 8KB of CHR-ROM or less.
-Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses. 
+(*) These values are valid for games that have 32KB of PRG-ROM and 8KB of CHR-ROM.
+Games with more than 32KB of PRG-ROM will have their CHR-ROM data stored at a higher address. 
+Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses. (see VI. Mappers)
 
-(**) The NES only provides 2KB of VRAM.
-Some games provide 2KB of extra VRAM for name tables 2 and 3. These games can hold 4 BG screens in memory at once.
-Without extra VRAM, name tables 2 and 3 are mirrors of name tables 0 and 1, with horizontal mirroring ($2000 = $2400 / $2800 = $2C00) or vertical mirroring ($2000 = $2800 / $2400 = $2C00).
-Some mappers also allow to mirror the first name table four times and use only 1KB of VRAM.
-(Other exotic name table setups exist but are very rare and rely on specific mappers not described here.)
+---
 
-PPU registers: (CPU addresses $2000-$2007 + $4014)
+> PPU registers: (CPU addresses $2000-$2007 + $4014)
 
-Reading from and writing to PPU memory can be done by using the I/O registers $2006 and $2007 in CPU memory
+Reading / writing in PPU memory can be done by using the CPU's I/O registers $2006 and $2007
 
-Full color palette:
+(TODO)
+
+---
+
+> Color palettes
+
+System colors:
 
 +----+-----------+   +----+-----------+
 | #  | RGB Value |   | #  | RGB Value |
@@ -426,24 +465,30 @@ Full color palette:
 +----+-----------+   +----+-----------+
 
 At any given time, the NES uses two 16-color palettes: the image palette ($3F00-$3F0F) and the sprite palette ($3F10-$3F1F).
-These palettes contain indexes pointing to the system palette above. The color stored in $3F00 is the one considered as transparent.
-$3F00 is mirrored every 4 bytes, so only 25 different colors  can appear on screen at once.
+These palettes contain indexes pointing to the system palette above.
+The color stored in $3F00 (and mirrored every 4 bytes) is considered as transparent when used in sprites.
 
-CHR-ROM decoding:
+---
 
-- Read 8 bytes, make a grid of 8x8 bits with it.
-- Read another 8 bytes, make another grid of 8x8 bits with it.
+> CHR-ROM sprite decoding:
+
+- Read a group of 8 bytes, make a grid of 8x8 bits with it.
+- Read another group of 8 bytes, make another grid of 8x8 bits with it.
 - Add the 2 grids.
-- the resulting grid represents a char. Its values represent the 2 low bytes of the color index to use for each pixel.
+- the resulting grid represents a char (a 8x8px sprite).
+  Its values represent the 2 low bytes of the image/sprite palette index to use for each pixel.
 
-Name / attribute tables:
+---
 
-Each KB of VROM contains:
-- a matrix of 32x30 tiles picked from a pattern table. (960B = 1B per tile)
-- a matrix of 8x8 attributes bytes, representing a group of 4x4 tiles. (64KB = 1B per attribute)
- * In a 4x4 group of tiles, the tiles are numbered from 0 to F and separated in 4 groups of 2x2 tiles (see below)
- * The attribute byte that represents each group of 4x4 tiles specifies the 2 high bytes of the color index to use for each pixel.
-   (bits 0-1 => group 1 / bits 2-3 => group 2 / bits 4-5 => group 3 / bits 6-7 => group 4)
+> Name / attribute tables:
+
+Each 1KB of VROM contains:
+- a matrix of 32x30 tiles indexed from a pattern table (960B = 1B per tile).
+- a matrix of 8x8 attributes bytes (64B = 1B per attribute):
+ * Each attribute represents a group of 4x4 tiles.
+ * In a 4x4 group of tiles, the tiles are numbered from 0 to F and separated in 4 groups of 2x2 tiles (see below).
+ * The attribute byte specifies the 2 high bytes of the color index to use for each pixel:
+   bits 0-1 => group 1 / bits 2-3 => group 2 / bits 4-5 => group 3 / bits 6-7 => group 4
 
   group 1   group 2
  +--------+--------+
@@ -457,8 +502,9 @@ Each KB of VROM contains:
  +--------+--------+
   group 3   group 4
 
+---
 
-PPU registers:
+> PPU registers:
 
 [TODO]
 
@@ -601,8 +647,11 @@ Writing any value to this register will enable MMC3 interrupts.
 This mapper has other special behaviors depending on the cartridge revision, but that's beyond my understanding. (to be completed if relevant)
 
 
-V. TV standards
+VII. TV standards
 ---------------
+
+> Differences between NTSC and PAL consoles.
+
                           +------------+----------+
                           | NTSC       | PAL      |
 +-------------------------+------------+----------+
@@ -613,8 +662,10 @@ V. TV standards
 | CPU speed               | 1.79MHz    | 1.66MHz  |
 +-------------------------+------------+----------+
 
-Games TV standard detection:
+> ROM standard detection:
 
 If a ROM file doesn't contain an iNES 2.0 header, it's impossible to know directly if it's NTSC or PAL, but:
-- The filename can contain "(E)" "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC.
-- The checksum of PRG-RAM and CHR-RAM (combined) can be looked in a NES ROM database like NesCartDB.
+- The filename can contain "(E)", "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC.
+- The checksum of PRG-RAM and CHR-RAM (combined) can be looked in a NES ROM database like NesCartDB. (this is the most reliable approach)
+
+A ROM played with the wrong TV standard will play slower or faster than normal.

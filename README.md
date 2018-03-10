@@ -9,7 +9,7 @@ NES ROM disassembler:
 - demo: https://xem.github.io/nes/disassembler.html
 - 1kb zip: https://github.com/xem/nes/blob/gh-pages/1k.zip
 
-(the example ROM is in the public domain)
+(the example ROM is a public domain Super Mario clone)
 
 - NES emulator: (soon)
 
