@@ -25,6 +25,8 @@ Martin Korth everynes.html: http://problemkaputt.de/everynes.htm
 
 Brad taylor's NES emulator guide: http://nesdev.com/NES%20emulator%20development%20guide.txt
 
+Obelisk's 6502 reference: http://obelisk.me.uk/6502/reference.html
+
 bfirsh's JSNES: https://github.com/bfirsh/jsnes
 
 Joel Yliluoma's (Bisqwit) nesemu1: https://bisqwit.iki.fi/jutut/kuvat/programming_examples/nesemu1/

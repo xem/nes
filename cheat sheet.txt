@@ -2,6 +2,9 @@
 |  NES emulation cheat-sheet  |
 ===============================
 
+This document aims to summarize in less than 1000 lines everything that must be known to develop a NES emulator.
+
+
 I. Physical cartridge (Game PAK)
 --------------------------------
 
@@ -232,9 +235,85 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 | F0 | BEQ *+d  | SBC (d),y | STP       | ISC (d),y | NOP d,x   | SBC d,x   | INC d,x   | ISC d,x   | SED       | SBC a,y   | NOP       | ISC a,y   | NOP a,x   | SBC a,x   | INC a,x   | ISC a,x   |
 +----+----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
 
-Opcodes detail:
+> Opcodes detail:
+
+The following table details how each opcode works:
+- In the flags column, the letters CZIDBVN tells which CPU flags are affected.
+  The numbers 0/1 indicates that the flag value is forced to this value.
+- In the cycles column, the number indicates how many CPU cycles are spent to execute the opcode for each addressing mode:
+  Implicit / Accumulator / Immediate / Zero Page / Zero Page, X / Zero Page, Y / Absolute / Absolute, X / Absolute, Y / Relative / (Indirect) / (Indirect, X) / (Indirect), Y
+  "+" means that 1 extra cycle is used during write or during a read on a different page (cross-page read).
+  "*" means that 1 extra cycle is used if the branch succeeds and 2 extra cycles are used if the branch goes to a new page.
+- In the operation column, the affected registers and flags are before the "=", and the operation is after the "=".
+  parameters A/X/Y represent CPU registers, C/Z/I/D/B/V/N represent CPU flags. M is a memory byte.
+  Mi represents the i'th bit of M. Ex: M6.
+
++-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+---------------------------------------------------------------------------------------------------------------------+
+|     |         |                          Cycles                                |                       |                                                                                                                     |
+| Op  | Flags   |Impl|A   |Imm |zp  |zpx |zpy |abs |absx|absy|rel |ind |indx|indy| Operation             | Details                                                                                                             |
++-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+---------------------------------------------------------------------------------------------------------------------+
+| ADC | CZ---VN |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,C,N = A+M+C       | Add M, A and C. C: set if bit 7 of result is set overflows. Z: A = 0. N: set if bit 7 of result is set.             |
+| AND | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A&M           | Logical AND, bit by bit, of M and A. Z: A = 0. N: set if bit 7 of result is set.                                    |
+| ASL | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | (A|M),Z,C,N = M*2     | Left shift A or M after putting bit 7 in C. Bit 0 = 0. Z: A = 0. N = set if bit 7 of result is set.                 |
+| BCC | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if C = 0.                                                                    |
+| BCS | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if C = 1.                                                                    |
+| BEQ | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if Z = 1.                                                                    |
+| BIT | --Z--VN |    |    |    | 3  |    |    | 4  |    |    |    |    |    |    | A&M, N = M7, V = M6   | AND the bitmask stored in A and M. Z: A&M = 0. V = M6. N = M7.                                                      |
+| BMI | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if N = 1.                                                                    |
+| BNE | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if Z = 0.                                                                    |
+| BPL | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if N = 0.                                                                    |
+| BRK | ----B-- | 7  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Generate an IRQ request.                                                                                            |
+| BVC | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if O = 0.                                                                    |
+| BVS | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if O = 1.                                                                    |
+| CLC | 0------ | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear carry flag.                                                                                                   |
+| CLD | ---0--- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear decimal flag.                                                                                                 |
+| CLI | --0---- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear interrupt flag.                                                                                               |
+| CLV | -----0- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear overflow tag.                                                                                                 |
+| CMP | CZ----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | Z,C,N = A-M           | Compare A and M. C: A >= M. Z: A = M. N: set if bit 7 of result is set.                                             |
+| CPX | CZ----N |    |    | 2  | 3  |    |    | 4  |    |    |    |    |    |    | Z,C,N = X-M           | Compare X and M. C: X >= M. Z: X = M. N: set if bit 7 of result is set.                                             |
+| CPY | CZ----N |    |    | 2  | 3  |    |    | 4  |    |    |    |    |    |    | Z,C,N = Y-M           | Compare Y and M. C: Y >= M. Z: Y = M. N: set if bit 7 of result is set.                                             |
+| DEC | -Z----N |    |    |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | M,Z,N = M-1           | Decrement M. Z: result = 0. N: set if bit 7 of result is set.                                                       |
+| DEX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = X-1           | Decrement X. Z: result = 0. N: set if bit 7 of result is set.                                                       |
+| DEY | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = Y-1           | Decrement Y. Z: result = 0. N: set if bit 7 of result is set.                                                       |
+| EOR | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A^M           | XOR A and M, bit by bit. Z: A=0. N: set if bit 7 of result is set.                                                  |
+| INC | -Z----N |    |    |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | M,Z,N = M+1           | Increment M. Z: result = 0. N: set if bit 7 of result is set.                                                       |
+| INX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = X+1           | Increment X. Z: result = 0. N: set if bit 7 of result is set.                                                       |
+| INY | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = Y+1           | Increment Y. Z: result = 0. N: set if bit 7 of result is set.                                                       |
+| JMP | ------- |    |    |    |    |    |    | 3  |    |    |    | 5  |    |    |                       | Jump (set PC) to the address in the operand. (Buggy *).                                                             |
+| JSR | ------- |    |    |    |    |    |    | 6  |    |    |    |    |    |    |                       | Jump to subroutine: push PC-1 on the stack and set PC to the address in operand.                                    |
+| LDA | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = M             | Load M in A. Z: A = 0. N: bit 7 of A.                                                                               |
+| LDX | -Z----N |    |    | 2  | 3  |    | 4  | 4  |    | 4+ |    |    |    |    | X,Z,N = M             | Load M in X. Z: X = 0. N: bit 7 of X.                                                                               |
+| LDY | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ |    |    |    |    |    | Y,Z,N = M             | Load M in Y. Z: Y = 0. N: bit 7 of Y.                                                                               |
+| LSR | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | (A|M),C,Z,N = (A|M)/2 | Right shift A or M after putting bit 0 in C. Bit 7 = 0. Z: result = 0. N: set if bit 7 of result is set.            |
+| NOP | ------- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | No operation.
+| ORA | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A|M           | OR A and M, bit by bit. Z: A = 0. N: set if bit 7 is set.
+| PHA | ------- | 3  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Push A on the stack.
+| PHP | ------- | 3  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Push P (the status flags) on the stack.
+| PLA | -Z----N | 4  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Pull A from the stack. Z: A = 0. N: set if bit 7 of A is set.
+| PLP | CZIDBVN | 4  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Pull P from the stack, and update all the flags with the values pulled.
+| ROL | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit 7 of A or M in C. Left shift A or M. Bit 0 = saved C.
+| ROR | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit O of A or M in C. Right shift A or M. Bit 7 = saved C.
 
 TODO
+
+| RTI | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| RTS | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| SBC | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| SEC | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| SED | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| SEI | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| STA | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| STX | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| STY | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| TAX | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| TAY | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| TSX | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| TXA | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| TXS | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+| TYA | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
+
+(*) Buggy indirect jumps:
+    If the indirect vector falls on a page boundary ($xxFF), it will fetch the bits 4-7 from $xxFF as expected, and the bits 0-3 from $xx00.
 
 ---
 
