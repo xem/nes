@@ -239,7 +239,6 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 
 The following table details how each opcode works:
 - In the flags column, the letters CZIDBVN tells which CPU flags are affected.
-  The numbers 0/1 indicates that the flag value is forced to this value.
 - In the cycles column, the number indicates how many CPU cycles are spent to execute the opcode for each addressing mode:
   Implicit / Accumulator / Immediate / Zero Page / Zero Page, X / Zero Page, Y / Absolute / Absolute, X / Absolute, Y / Relative / (Indirect) / (Indirect, X) / (Indirect), Y
   "+" means that 1 extra cycle is used during write or during a read on a different page (cross-page read).
@@ -248,71 +247,69 @@ The following table details how each opcode works:
   parameters A/X/Y represent CPU registers, C/Z/I/D/B/V/N represent CPU flags. M is a memory byte.
   Mi represents the i'th bit of M. Ex: M6.
 
-+-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+---------------------------------------------------------------------------------------------------------------------+
-|     |         |                          Cycles                                |                       |                                                                                                                     |
-| Op  | Flags   |Impl|A   |Imm |zp  |zpx |zpy |abs |absx|absy|rel |ind |indx|indy| Operation             | Details                                                                                                             |
-+-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+---------------------------------------------------------------------------------------------------------------------+
-| ADC | CZ---VN |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,C,N = A+M+C       | Add M, A and C. C: set if bit 7 of result is set overflows. Z: A = 0. N: set if bit 7 of result is set.             |
-| AND | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A&M           | Logical AND, bit by bit, of M and A. Z: A = 0. N: set if bit 7 of result is set.                                    |
-| ASL | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | (A|M),Z,C,N = M*2     | Left shift A or M after putting bit 7 in C. Bit 0 = 0. Z: A = 0. N = set if bit 7 of result is set.                 |
-| BCC | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if C = 0.                                                                    |
-| BCS | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if C = 1.                                                                    |
-| BEQ | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if Z = 1.                                                                    |
-| BIT | --Z--VN |    |    |    | 3  |    |    | 4  |    |    |    |    |    |    | A&M, N = M7, V = M6   | AND the bitmask stored in A and M. Z: A&M = 0. V = M6. N = M7.                                                      |
-| BMI | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if N = 1.                                                                    |
-| BNE | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if Z = 0.                                                                    |
-| BPL | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if N = 0.                                                                    |
-| BRK | ----B-- | 7  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Generate an IRQ request.                                                                                            |
-| BVC | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if O = 0.                                                                    |
-| BVS | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if O = 1.                                                                    |
-| CLC | 0------ | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear carry flag.                                                                                                   |
-| CLD | ---0--- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear decimal flag.                                                                                                 |
-| CLI | --0---- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear interrupt flag.                                                                                               |
-| CLV | -----0- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Clear overflow tag.                                                                                                 |
-| CMP | CZ----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | Z,C,N = A-M           | Compare A and M. C: A >= M. Z: A = M. N: set if bit 7 of result is set.                                             |
-| CPX | CZ----N |    |    | 2  | 3  |    |    | 4  |    |    |    |    |    |    | Z,C,N = X-M           | Compare X and M. C: X >= M. Z: X = M. N: set if bit 7 of result is set.                                             |
-| CPY | CZ----N |    |    | 2  | 3  |    |    | 4  |    |    |    |    |    |    | Z,C,N = Y-M           | Compare Y and M. C: Y >= M. Z: Y = M. N: set if bit 7 of result is set.                                             |
-| DEC | -Z----N |    |    |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | M,Z,N = M-1           | Decrement M. Z: result = 0. N: set if bit 7 of result is set.                                                       |
-| DEX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = X-1           | Decrement X. Z: result = 0. N: set if bit 7 of result is set.                                                       |
-| DEY | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = Y-1           | Decrement Y. Z: result = 0. N: set if bit 7 of result is set.                                                       |
-| EOR | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A^M           | XOR A and M, bit by bit. Z: A=0. N: set if bit 7 of result is set.                                                  |
-| INC | -Z----N |    |    |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | M,Z,N = M+1           | Increment M. Z: result = 0. N: set if bit 7 of result is set.                                                       |
-| INX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = X+1           | Increment X. Z: result = 0. N: set if bit 7 of result is set.                                                       |
-| INY | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = Y+1           | Increment Y. Z: result = 0. N: set if bit 7 of result is set.                                                       |
-| JMP | ------- |    |    |    |    |    |    | 3  |    |    |    | 5  |    |    |                       | Jump (set PC) to the address in the operand. (Buggy *).                                                             |
-| JSR | ------- |    |    |    |    |    |    | 6  |    |    |    |    |    |    |                       | Jump to subroutine: push PC-1 on the stack and set PC to the address in operand.                                    |
-| LDA | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = M             | Load M in A. Z: A = 0. N: bit 7 of A.                                                                               |
-| LDX | -Z----N |    |    | 2  | 3  |    | 4  | 4  |    | 4+ |    |    |    |    | X,Z,N = M             | Load M in X. Z: X = 0. N: bit 7 of X.                                                                               |
-| LDY | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ |    |    |    |    |    | Y,Z,N = M             | Load M in Y. Z: Y = 0. N: bit 7 of Y.                                                                               |
-| LSR | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | (A|M),C,Z,N = (A|M)/2 | Right shift A or M after putting bit 0 in C. Bit 7 = 0. Z: result = 0. N: set if bit 7 of result is set.            |
-| NOP | ------- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | No operation.
-| ORA | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A|M           | OR A and M, bit by bit. Z: A = 0. N: set if bit 7 is set.
-| PHA | ------- | 3  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Push A on the stack.
-| PHP | ------- | 3  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Push P (the status flags) on the stack.
-| PLA | -Z----N | 4  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Pull A from the stack. Z: A = 0. N: set if bit 7 of A is set.
-| PLP | CZIDBVN | 4  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Pull P from the stack, and update all the flags with the values pulled.
-| ROL | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit 7 of A or M in C. Left shift A or M. Bit 0 = saved C.
-| ROR | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit O of A or M in C. Right shift A or M. Bit 7 = saved C.
++-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
+|     |         |                          Cycles                                |                       |                                                                                                                      |
+| Op  | Flags   |Impl|A   |Imm |zp  |zpx |zpy |abs |absx|absy|rel |ind |indx|indy| Operation             | Details                                                                                                              |
++-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
+| ADC | CZ---VN |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,C,N = A+M+C       | Add M, A and C. C: set if bit 7 of result is set overflows. Z: set if A = 0. N: set if bit 7 of result is set.       |
+| AND | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A&M           | Logical AND, bit by bit, of M and A. Z: set if A = 0. N: set if bit 7 of result is set.                              |
+| ASL | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | (A|M),Z,C,N = M*2     | Left shift A or M after putting bit 7 in C. Bit 0 = 0. Z: set if A = 0. N = set if bit 7 of result is set.           |
+| BCC | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if C = 0.                                                                     |
+| BCS | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if C = 1.                                                                     |
+| BEQ | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if Z = 1.                                                                     |
+| BIT | --Z--VN |    |    |    | 3  |    |    | 4  |    |    |    |    |    |    | A&M, N = M7, V = M6   | AND the bitmask stored in A and M. Z: A&M = 0. V = M6. N = M7.                                                       |
+| BMI | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if N = 1.                                                                     |
+| BNE | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if Z = 0.                                                                     |
+| BPL | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if N = 0.                                                                     |
+| BRK | ----B-- | 7  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Generate an IRQ request.                                                                                             |
+| BVC | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if O = 0.                                                                     |
+| BVS | ------- |    |    |    |    |    |    |    |    |    | 2* |    |    |    |                       | Branch to relative address (PC += rel) if O = 1.                                                                     |
+| CLC | C------ | 2  |    |    |    |    |    |    |    |    |    |    |    |    | C = 0                 | Clear carry flag.                                                                                                    |
+| CLD | ---D--- | 2  |    |    |    |    |    |    |    |    |    |    |    |    | D = 0                 | Clear decimal flag.                                                                                                  |
+| CLI | --I---- | 2  |    |    |    |    |    |    |    |    |    |    |    |    | I = 0                 | Clear interrupt disable flag.                                                                                        |
+| CLV | -----V- | 2  |    |    |    |    |    |    |    |    |    |    |    |    | V = 0                 | Clear overflow tag.                                                                                                  |
+| CMP | CZ----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | Z,C,N = A-M           | Compare A and M. C: A >= M. Z: set if A = M. N: set if bit 7 of result is set.                                       |
+| CPX | CZ----N |    |    | 2  | 3  |    |    | 4  |    |    |    |    |    |    | Z,C,N = X-M           | Compare X and M. C: X >= M. Z: set if X = M. N: set if bit 7 of result is set.                                       |
+| CPY | CZ----N |    |    | 2  | 3  |    |    | 4  |    |    |    |    |    |    | Z,C,N = Y-M           | Compare Y and M. C: Y >= M. Z: set if Y = M. N: set if bit 7 of result is set.                                       |
+| DEC | -Z----N |    |    |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | M,Z,N = M-1           | Decrement M. Z: result = 0. N: set if bit 7 of result is set.                                                        |
+| DEX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = X-1           | Decrement X. Z: result = 0. N: set if bit 7 of result is set.                                                        |
+| DEY | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = Y-1           | Decrement Y. Z: result = 0. N: set if bit 7 of result is set.                                                        |
+| EOR | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A^M           | XOR A and M, bit by bit. Z: set if A=0. N: set if bit 7 of result is set.                                            |
+| INC | -Z----N |    |    |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | M,Z,N = M+1           | Increment M. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
+| INX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = X+1           | Increment X. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
+| INY | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | M,Z,N = Y+1           | Increment Y. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
+| JMP | ------- |    |    |    |    |    |    | 3  |    |    |    | 5  |    |    |                       | Jump (set PC) to the address in the operand. (Buggy *).                                                              |
+| JSR | ------- |    |    |    |    |    |    | 6  |    |    |    |    |    |    |                       | Jump to subroutine: push PC-1 on the stack and set PC to the address in operand.                                     |
+| LDA | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = M             | Load M in A. Z: set if A = 0. N: bit 7 of A.                                                                         |
+| LDX | -Z----N |    |    | 2  | 3  |    | 4  | 4  |    | 4+ |    |    |    |    | X,Z,N = M             | Load M in X. Z: set if X = 0. N: bit 7 of X.                                                                         |
+| LDY | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ |    |    |    |    |    | Y,Z,N = M             | Load M in Y. Z: set if Y = 0. N: bit 7 of Y.                                                                         |
+| LSR | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    | (A|M),C,Z,N = (A|M)/2 | Right shift A or M after putting bit 0 in C. Bit 7 = 0. Z: result = 0. N: set if bit 7 of result is set.             |
+| NOP | ------- | 2  |    |    |    |    |    |    |    |    |    |    |    |    |                       | No operation.                                                                                                        |
+| ORA | -Z----N |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,N = A|M           | OR A and M, bit by bit. Z: set if A = 0. N: set if bit 7 is set.                                                     |
+| PHA | ------- | 3  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Push A on the stack.                                                                                                 |
+| PHP | ------- | 3  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Push P (the status flags) on the stack.                                                                              |
+| PLA | -Z----N | 4  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Pull A from the stack. Z: set if A = 0. N: set if bit 7 of A is set.                                                 |
+| PLP | CZIDBVN | 4  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Pull P from the stack, and update all the flags with the values pulled.                                              |
+| ROL | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit 7 of A or M in C. Left shift A or M. Bit 0 = saved C.                                       |
+| ROR | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit O of A or M in C. Right shift A or M. Bit 7 = saved C.                                      |
+| RTI | CZIDBVN | 6  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Return from interrupt: pull S (the flags) and PC from the stack.                                                     |
+| RTS | ------- | 6  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Return from subroutine: pull PC-1 from the stack (see JSR).                                                          |
+| SBC | CZ---VN |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,C,N = A-M-!C      | Sub M and NOT C to A. C: 0 if bit 7 overflows. Z: set if A = 0. V: set if sign bit is wrong. N: set if bit 7 is set. |
+| SEC | C------ | 2  |    |    |    |    |    |    |    |    |    |    |    |    | C = 1                 | Set carry flag.                                                                                                      |
+| SED | ---D--- | 2  |    |    |    |    |    |    |    |    |    |    |    |    | D = 1                 | Set decimal flag.                                                                                                    |
+| SEI | --I---- | 2  |    |    |    |    |    |    |    |    |    |    |    |    | I = 1                 | Set interrupt disable flag.                                                                                          |
+| STA | ------- |    |    |    | 3  | 4  |    | 4  | 5  | 5  |    |    | 6  | 6  | M = A                 | Store A in M.                                                                                                        |
+| STX | ------- |    |    |    | 3  |    | 4  | 4  |    |    |    |    |    |    | M = X                 | Store X in M.                                                                                                        |
+| STY | ------- |    |    |    | 3  | 4  |    | 4  |    |    |    |    |    |    | M = Y                 | Store Y in M.                                                                                                        |
+| TAX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | X = A                 | Copy A in X. Z: set if X = 0. N: set if bit 7 of X is set.                                                           |
+| TAY | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | Y = A                 | Copy A in Y. Z: set if Y = 0. N: set if bit 7 of Y is set.                                                           |
+| TSX | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | X = S                 | Copy S in X. Z: set if X = 0. N: set if bit 7 of X is set.                                                           |
+| TXA | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | A = X                 | Copy X in A. Z: set if A = 0. N: set if bit 7 of A is set.                                                           |
+| TXS | ------- | 2  |    |    |    |    |    |    |    |    |    |    |    |    | S = X                 | Copy X in S.                                                                                                         |
+| TYA | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | A = Y                 | Copy Y in A. Z: set if A = 0. N: set if bit 7 of A is set.                                                           |
++-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
 
-TODO
-
-| RTI | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| RTS | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| SBC | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| SEC | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| SED | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| SEI | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| STA | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| STX | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| STY | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| TAX | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| TAY | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| TSX | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| TXA | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| TXS | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-| TYA | ------- |    |    |    |    |    |    |    |    |    |    |    |    |    |                       | 
-
-(*) Buggy indirect jumps:
+(*) Buggy indirect jump:
     If the indirect vector falls on a page boundary ($xxFF), it will fetch the bits 4-7 from $xxFF as expected, and the bits 0-3 from $xx00.
 
 ---
@@ -441,32 +438,40 @@ When an interrupt occurs, the system must:
 - Resume execution of the program.
 
 
-IV. PPU
--------
+IV. PPU (Picture Processing Unit)
+---------------------------------
 
-The PPU (Pixel Processing Unit) has access to 8KB of the game's CHR-ROM and has 2KB of VRAM to hold two "screens" filled with 32x30 sprites.
-The viewport (the part that is visible on screen at a given time) can be placed anywhere in this 4-screen setup:
+> TV screen
 
-    0        32       64
-  0 +--------+--------+
-    |        |        |
-    |   O    |    1   |
-    |        |        |
- 30 +--------+--------+
-    |        |        |
-    |   2    |    3   |
-    |        |        |
- 60 +--------+--------+
- 
- 
-The NES only provides 2KB of VRAM.
-Some games provide 2KB of extra VRAM for name tables 2 and 3. These games can hold 4 screens in memory at once.
-Without extra VRAM, name tables 2 and 3 are mirrors of name tables 0 and 1, with horizontal mirroring ($2000 = $2400 / $2800 = $2C00) or vertical mirroring ($2000 = $2800 / $2400 = $2C00).
-Some mappers also allow to mirror the first name table four times and use only 1KB of VRAM.
-(Other exotic name table setups exist but are very rare and rely on specific mappers not described here.)
+The rendering loops through all the (visible and invisible) dots (pixels) of the screen:
 
-> PPU memory map (64KB):
+     0                                  256           341
+   0 +-----------------------------------+-------------+
+     |   ##                ##            |             |
+     |  ####              ####           |             |
+     |                                   |             |
+     |                                   |             |
+     |                                  #|             |
+     | Visible scanlines               ##| HBlank dots |
+     |                                ###|     (85)    |
+     |   #                   ##      ####|             |
+     |   #      #            ##     #####|             |
+     |###############  ##################|             |
+     |###############  ##################|             |
+ 242 +-----------------------------------+-------------+
+     | Post-render scanline                            |
+     +-------------------------------------------------+
+     | VBlank scanlines                                |
+     | (20 on NTSC, 70 on PAL)                         |
+     +-------------------------------------------------+
+     | Pre-render scanline                             |
+     +-------------------------------------------------+
 
+---
+
+> PPU + OAM memory map (64KB + 128B):
+
+PPU: 
 +-------------+-------+----------------------------------------------------------+
 | Address     | Size  | Use                                                      |
 +-------------+-------+----------------------------------------------------------+
@@ -479,7 +484,7 @@ Some mappers also allow to mirror the first name table four times and use only 1
 | $2800-$2BFF | 1KB   | Name Table 2 + attribute Table 2                         |
 | $2C00-$2FFF | 1KB   | Name Table 3 + attribute Table 3                         |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
-| $3000-$3EFF | 3840B | Mirror of $2000-$2EFF                                    |
+| $3000-$3EFF | 3840B | Mirror of $2000-$2EFF (not used during rendering)        |
 +-------------+-------+----------------------------------------------------------+
 | $3F00-$3F1F | 32B   | Background and Sprite Palettes                           |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
@@ -490,15 +495,116 @@ Some mappers also allow to mirror the first name table four times and use only 1
 
 (*) These values are valid for games that have 32KB of PRG-ROM and 8KB of CHR-ROM.
 Games with more than 32KB of PRG-ROM will have their CHR-ROM data stored at a higher address. 
-Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses. (see VI. Mappers)
+Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses (see VI. Mappers).
+
+OAM:
+
++-------------+-------+----------------------------------------------------------+
+| Address     | Size  | Use                                                      |
++-------------+-------+----------------------------------------------------------+
+| $00-$FF     | 128B  | Sprites properties                                       |
++-------------+-------+----------------------------------------------------------+
 
 ---
 
-> PPU registers: (CPU addresses $2000-$2007 + $4014)
+> PPU registers:
 
-Reading / writing in PPU memory can be done by using the CPU's I/O registers $2006 and $2007
+PPUCTRL register (CPU $2000):
+Controls PPU operations (write only).
 
-(TODO)
++-----+----------------------------------------------------------+
+| Bit | Use                                                      |
++-----+----------------------------------------------------------+
+| 0-1 | Nametable select (0-3)                                   |
+| 2   | Increment mode (1/32 VRAM address increment per CPU R/W) |
+| 3   | Sprite tile select, for 8x8 sprites only ($0000/$1000)   |
+| 4   | Background tile select ($0000/$1000)                     |
+| 5   | Sprite height (8x8/8x16)                                 |
+| 6   | PPU master/slave (always 0 on stock NES)                 |
+| 7   | NMI enable (generates NMI at the start of VBlank)        |
++-----+----------------------------------------------------------+
+
+PPUMASK register (CPU $2001):
+Controls the rendering of sprites and backgrounds, as well as color effects (write only).
+
++-----+-------------------------------------------------+
+| Bit | Use                                             |
++-----+-------------------------------------------------+
+| 0   | Greyscale (all colors are ANDed with $30)       |
+| 1   | Enable left background                          |
+| 2   | Enable left sprite column                       |
+| 3   | Background enable                               |
+| 4   | Sprite enable                                   |
+| 5-7 | color emphasis for R/G/B on NTSC, G/R/B on PAL. |
++-----+-------------------------------------------------+
+
+PPUSTATUS register (CPU $2002):
+Reflects the state of various functions inside the PPU. (read only)
+Reading this register resets write for $2005/$2006.
+
++-----+----------------------------------------------------------------------------+
+| Bit | Use                                                                        |
++-----+----------------------------------------------------------------------------+
+| 5   | Sprite overflow                                                            |
+| 6   | Sprite 0 hit (cleared on pre-render line)                                  |
+| 7   | VBlank (set on line 241, cleared on pre-render line or after a $2002 read) |
++-----+----------------------------------------------------------------------------+
+
+OAMADDR register (CPU $2003):
+Address of the next OAM to be accessed (write only).
+
++-----+---------------------------+
+| Bit | Use                       |
++-----+---------------------------+
+| 0-7 | OAM R/W address           |
++-----+---------------------------+
+
+OAMDATA register (CPU $2004):
+On write: writes OAM value at address OAMADDR and increments it.
+On read: reads OAM value at address OAMADDR.
+
++-----+---------------------------+
+| Bit | Use                       |
++-----+---------------------------+
+| 0-7 | OAM R/W data              |
++-----+---------------------------+
+
+PPUSCROLL register (CPU $2005):
+First write for X, second write for Y (write only).
+
++-----+---------------------------+
+| Bit | Use                       |
++-----+---------------------------+
+| 0-7 | Fine scroll position      |
++-----+---------------------------+
+
+PPUADDR register (CPU $2006):
+First write for bits 9-16, second write for bits 0-7 (write only).
+
++-----+---------------------------+
+| Bit | Use                       |
++-----+---------------------------+
+| 0-7 | PPU read/write address    |
++-----+---------------------------+
+
+PPUDATA register (CPU $2007):
+VRAM data register (read/write). After access, PPUADDR increments by an amount determined by $2000, bit 2.
+
++-----+---------------------------+
+| Bit | Use                       |
++-----+---------------------------+
+| 0-7 | PPU read/write data       |
++-----+---------------------------+
+
+OAMDMA register (CPU $4014):
+Writing $XX will upload 256 bytes of data from CPU page $XX00-$XXFF to the internal PPU OAM (write only).
+The operation will take 513 cycles, or 514 if the CPU is on an odd cycle.
+
++-----+---------------------------+
+| Bit | Use                       |
++-----+---------------------------+
+| 0   | OAM DMA high address      |
++-----+---------------------------+
 
 ---
 
@@ -545,7 +651,7 @@ System colors:
 
 At any given time, the NES uses two 16-color palettes: the image palette ($3F00-$3F0F) and the sprite palette ($3F10-$3F1F).
 These palettes contain indexes pointing to the system palette above.
-The color stored in $3F00 (and mirrored every 4 bytes) is considered as transparent when used in sprites.
+The color stored in $3F00 (and mirrored every 4 bytes) is considered as transparent in sprites.
 
 ---
 
@@ -560,6 +666,26 @@ The color stored in $3F00 (and mirrored every 4 bytes) is considered as transpar
 ---
 
 > Name / attribute tables:
+
+The viewport (the part that is visible on screen at a given time) can be placed anywhere in this 4-screen setup:
+
+    0        32       64
+  0 +--------+--------+
+    |        |        |
+    |   0    |    1   |
+    |        |        |
+ 30 +--------+--------+
+    |        |        |
+    |   2    |    3   |
+    |        |        |
+ 60 +--------+--------+
+ 
+ 
+The NES only provides 2KB of VRAM.
+Some games provide 2KB of extra VRAM for name tables 2 and 3. These games can hold 4 screens in memory at once.
+Without extra VRAM, name tables 2 and 3 are mirrors of name tables 0 and 1, with horizontal mirroring ($2000 = $2400 / $2800 = $2C00) or vertical mirroring ($2000 = $2800 / $2400 = $2C00).
+Some mappers also allow to mirror the first name table four times and use only 1KB of VRAM.
+(Other exotic name table setups exist but are very rare and rely on specific mappers not described here.)
 
 Each 1KB of VROM contains:
 - a matrix of 32x30 tiles indexed from a pattern table (960B = 1B per tile).
@@ -580,18 +706,17 @@ Each 1KB of VROM contains:
  | A   B  | E   F  |
  +--------+--------+
   group 3   group 4
+  
+> OAM
 
----
-
-> PPU registers:
-
-[TODO]
-
+[TODO http://wiki.nesdev.com/w/index.php/PPU_programmer_reference#References ]
+  
 
 V. APU
 ------
 
 [Audio specs, TODO]
+
 
 VI. Mappers
 -----------
