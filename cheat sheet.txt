@@ -762,11 +762,46 @@ Each 1KB of VROM contains:
  +---------+---------+
   Group 3    Group 4
  (bits 4-5) (bits 6-7)
-  
-> OAM
 
-[TODO http://wiki.nesdev.com/w/index.php/PPU_programmer_reference#References ]
-  
+---
+
+> OAM (Object Attribute Memory)
+
+Up to 64 sprites can be displayed at once, each one is represented by a 4-byte entry in the OAM.
+In case of overlapping sprites, the priority goes from high (0) to low (63).
+
++------+-----+------------------------------------------------------------------------------------------+
+| Byte | Bit | Use                                                                                      |
++------+-----+------------------------------------------------------------------------------------------+
+| 0    | 0-7 | Y position of the top-left pixel of the sprite                                           |
++------+-----+------------------------------------------------------------------------------------------+
+| 1    | 0-7 | - For a 8x8px sprite: tile number in the pattern table selected in PPUCTRL ($2000) bit 3 |
+|      |     | - For a 8x16px sprite:                                                                   |
+|      |     |  * bit 0 represents the pattern table ($0000 or $1000)                                   |
+|      |     |  * ((bits 1-7) * 2) represents the upper 8x8px tile number in the selected table         |
++------+-----+------------------------------------------------------------------------------------------+
+| 2    | 0-1 | Palette (4 to 7) of sprite                                                               |
+|      | 5   | Priority (0: in front of background / 1: behind the background)                          |
+|      | 6   | Flip sprite horizontally                                                                 |
+|      | 7   | Flip sprite vertically                                                                   |
++------+-----+------------------------------------------------------------------------------------------+
+| 3    | 0-7 | Y position of the top-left pixel of the sprite                                           |
++------+-----+------------------------------------------------------------------------------------------+
+
+> Sprite zero hit
+
+Happens when an opaque pixel of sprite 0 (defined by OAM $00-$03) overlaps an opaque pixel of background.
+In this case Bit 6 of PPUSTATUS ($2002) is set. (It will be cleared when the PPU reaches dot 1 of the pre-render line.
+
+Does not happen:
+- if BG or sprite rendering is disabled in PPUMASK ($2001).
+- At x=0 to x=7 if the left-side clipping window is enabled in PPUMASK.
+- At x=255.
+- At any pixel where the background or sprite pixel is transparent ($00).
+- If sprite 0 hit has already occurred in the current frame.
+
+TODO: http://wiki.nesdev.com/w/index.php/PPU_rendering
+
 
 V. APU
 ------
