@@ -456,16 +456,17 @@ IV. PPU (Picture Processing Unit)
 
 > Summary
 
-The PPU ticks three times (processes 3 pixels of the screen) during each CPU tick.
+The PPU ticks three times (renders 3 pixels on screen) during each CPU tick.
 Each pixel color is computed according to the pattern tables, nametables, palettes, OAM registers and PPU registers.
 The PPU also provides important information to the CPU through PPU registers placed in the CPU address space.
 
 > TV screen
 
 The PPU loops through all the (visible and invisible) dots of the screen:
+Every scanline from 0 to 261 is preceded by a pre-rending scanline where the PPU fetches the sprites to draw at the next scanline.
 
      0                                  256           341
-   0 +-----------------------------------+-------------+
+   0 +-----------------------------------+-------------+ --> dots
      |   ##                ##            |             |
      |  ####              ####           |             |
      |                                   |             |
@@ -478,13 +479,14 @@ The PPU loops through all the (visible and invisible) dots of the screen:
      |###############  ##################|             |
      |###############  ##################|             |
  242 +-----------------------------------+-------------+
-     | Post-render scanline                            |
+     | Post-render scanline (idle)                     |
      +-------------------------------------------------+
      | VBlank scanlines                                |
      | (20 on NTSC, 70 on PAL)                         |
      +-------------------------------------------------+
-     | Pre-render scanline                             |
-     +-------------------------------------------------+
+     |
+     v
+  scanlines
 
 ---
 
@@ -800,8 +802,28 @@ Does not happen:
 - At any pixel where the background or sprite pixel is transparent ($00).
 - If sprite 0 hit has already occurred in the current frame.
 
-TODO: http://wiki.nesdev.com/w/index.php/PPU_rendering
+---
 
+> PPU scrolling
+
+The position of the "camera" inside the 4-screen background defined by the nametables depends on many registers:
+- X coordinate is written to PPUSCROLL ($2005).
+- then Y coordinate is written to PPUSCROLL.
+- The two higher bits of X and Y (the nametable containing the tile visible on the top-left corner) is written in bits 0-1 of PPUCTRL ($2000)
+
+In case of overflow, the viewport wraps around.
+
+
++-----------+--------------+
+|----+             +-------|
+|    |             |       |
+|ort |    VRAM     | viewp-|
+|    |             |       |
+|    |             |       |
+|----+             +-------|
++-----------+--------------+
+
+TODO: explain fine scroll and more details in the PPU registers
 
 V. APU
 ------
