@@ -1,9 +1,8 @@
-===============================
-|  NES emulation cheat-sheet  |
-===============================
+===========================
+ NES emulation cheat-sheet 
+===========================
 
-This document aims to summarize in less than 1000 lines everything that must be known to develop a NES emulator.
-
+This document aims to summarize everything that must be known to develop a NES emulator.
 
 I. Physical cartridge (Game PAK)
 --------------------------------
@@ -26,13 +25,17 @@ A lot of games can fit in this size (ex: Super Mario Bros - 40KB).
 Bigger games perform bank switching to access different parts of ROM/RAM when needed.
 Banks setup and switching for each game is defined by a mapper (see VI. Mappers).
 Mappers also define the PPU's nametables' mirroring, or extend them with a VRAM chip (see III. PPU).
-Games are dumped in "ROM" files. the iNES format is described below.
+Games are dumped in files called "ROM". The most used ROM format (iNES) is described below.
 
 II. iNES ROM file format
 ------------------------
 
+> Summary
+
 Two versions of this format exist (1.0 and 2.0), both are described here. They use the extension ".nes".
-The file starts with a 16B header:
+The file starts with a 16B header containing all the metadata required to emulate the game, followed by the PRG-ROM and CHR-ROM data.
+
+> Header
 
 +------+-------+-------------------------------------------------------------------------------------+
 | Byte | Value | Use                                                                                 |
@@ -54,8 +57,8 @@ The file starts with a 16B header:
 | 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL)                                            |
 |      |       | - iNES 2.0: CHR ROM size extension (bits 0-3), PRG-ROM size extension (bits 4-7)    |
 +------+-------+-------------------------------------------------------------------------------------+
-| 10   | $xx   | iNES 2.0: PRG-RAM NOT battery-packed (bits 0-3) / battery-packed (bits 4-7) (*)     |
-| 11   | $xx   | iNES 2.0: CHR-RAM NOT battery-packed (bits 0-3) / battery-packed (bits 4-7) (*)     |
+| 10   | $xx   | iNES 2.0: PRG-RAM NOT battery-packed (bits 0-3) and battery-packed (bits 4-7) (*)   |
+| 11   | $xx   | iNES 2.0: CHR-RAM NOT battery-packed (bits 0-3) and battery-packed (bits 4-7) (*)   |
 +------+-------+-------------------------------------------------------------------------------------+
 | 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL. Bit 1: both                                            |
 +------+-------+-------------------------------------------------------------------------------------+
@@ -63,10 +66,9 @@ The file starts with a 16B header:
 +------+-------+-------------------------------------------------------------------------------------+
 | 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROM banks (bits 0-1)                          |
 +------+-------+-------------------------------------------------------------------------------------+
-| 15   | 0     | Reserved                                                                            |
+| 15   | $00   | Reserved                                                                            |
 +------+-------+-------------------------------------------------------------------------------------+
-
-(*) In bytes 10 and 11, the 4-bit size (N) uses a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved.
+(*) In bytes 10 and 11, the 4-bit sizes (N) use a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved.
 
 Flags 6:
 
@@ -99,7 +101,9 @@ Flags 7:
 | 7   | /                                                           |
 +-----+-------------------------------------------------------------+
 
-How to parse the iNES header:
+---
+
+> How to parse the iNES header
 
 Some ROMS contain garbage (text) in the bytes 7-15 of the header. To detect iNES 2.0 reliably, this procedure is recommended:
 - If (byte 7 AND $0C) == $08, and the size encoded in bytes 4, 5 and 9 does not exceed the file size, then NES 2.0.
@@ -108,6 +112,8 @@ Some ROMS contain garbage (text) in the bytes 7-15 of the header. To detect iNES
 
 ---
 
+> ROM content
+
 Right after the header, the ROM file contains:
 
 - A 512B trainer (if enabled in Flags 6, bit 2).
@@ -115,7 +121,9 @@ Right after the header, the ROM file contains:
 - The 8KB CHR-ROM bank(s).
 - The 8KB hint screen data (if enabled in Flags 7, bit 1, in iNES 1.0).
 
-The last 6 bytes of the first PRG-ROM bank contain 3 vectors (16-bit addresses):
+> Interrupt vector table
+
+The last 6 bytes of the first PRG-ROM bank contain 3 vectors (16-bit addresses) used by the CPU in certain conditions (see III. CPU > Interrupts):
 
 +---------+-------------+---------------------------------------------------+
 | Vector  | Bytes       | Use                                               |
@@ -147,39 +155,38 @@ Interrupts can pause the program and execute a dedicated routine, before resumin
 | Address     | Size  | Use                                                   |
 +-------------+-------+-------------------------------------------------------+
 | $0000-$07FF | 2048B | 2KB internal RAM:                                     |
-| $0000-$000F | $000F | - Zero page                                           |
-| $0010-$00FF | $00F0 | - Global variables                                    |
-| $0100-$019F | $00A0 | - Next VBlank's nametable data                        |
-| $01A0-$01FF | $0060 | - Stack                                               |
-| $0200-$02FF | $0100 | - Next VBlank's OAM data                              |
-| $0300-$03FF | $0100 | - Sound / misc                                        |
-| $0400-$07FF | $0400 | - Arrays / misc                                       |
+| $0000-$000F | 16B   | - Zero page                                           |
+| $0010-$00FF | 240B  | - Global variables                                    |
+| $0100-$019F | 160B  | - Next VBlank's nametable data                        |
+| $01A0-$01FF | 96B   | - Stack                                               |
+| $0200-$02FF | 256B  | - Next VBlank's OAM data                              |
+| $0300-$03FF | 256B  | - Sound / misc                                        |
+| $0400-$07FF | 1024B | - Arrays / misc                                       |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - -+
 | $0800-$0FFF | 2048B | Mirror of $0000-$07FF                                 |
-| $1000-$17FF | $0800 | Mirror of $0000-$07FF                                 |
-| $1800-$1FFF | $0800 | Mirror of $0000-$07FF                                 |
+| $1000-$17FF | 2048B | Mirror of $0000-$07FF                                 |
+| $1800-$1FFF | 2048B | Mirror of $0000-$07FF                                 |
 +-------------+-------+-------------------------------------------------------+
-| $2000-$2007 | $0008 | PPU I/O registers                                     |
+| $2000-$2007 | 8B    | PPU I/O registers                                     |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - -+
-| $2008-$3FFF | $1FF8 | Mirrors of $2000-$2007 (every 8 bytes)                |
+| $2008-$3FFF | 8184B | Mirrors of $2000-$2007 (every 8 bytes)                |
 +-------------+-------+-------------------------------------------------------+
-| $4000-$4017 | $0018 | APU I/O registers                                     |
-| $4018-$401F | $0008 | APU I/O functionality normally disabled               |
+| $4000-$4017 | 24B   | APU I/O registers                                     |
+| $4018-$401F | 8B    | APU I/O debug registers (normally disabled)           |
 +-------------+-------+-------------------------------------------------------+
-| $4020-$FFFF | $BFE0 | Cartridge space:                                      |
-| $4020-$5FFF | $1FE0 | - Expansion ROM (some mappers add extra ROM/RAM here) |
-| $6000-$7FFF | $2000 | - PRG-RAM (if any)                                    |
-| $7000-$71FF | $01FF | - trainer (if any)   => .nes file $0010-$020F         |
-| $8000-$BFFF | $8000 | - PRG-ROM low page   => .nes file $0010-$400F (*)     |
-| $C000-$FFFF | $8000 | - PRG-ROM high page  => .nes file $4010-$800F (*)     |
-| $FFFA-$FFFB | $0002 | - NMI vector         => .nes file $800A-$800B         |
-| $FFFC-$FFFD | $0002 | - Reset vector       => .nes file $800C-$800D         |
-| $FFFE-$FFFF | $0002 | - IRQ/BRK vector     => .nes file $800E-$800F         |
+| $4020-$FFFF | 48KB  | Cartridge space:                                      |
+| $4020-$5FFF | 8160B | - Expansion ROM (some mappers add extra ROM/RAM here) |
+| $6000-$7FFF | 8KB   | - PRG-RAM (if any)                                    |
+| $7000-$71FF | 512B  | - trainer (if any)   => .nes file $0010-$020F         |
+| $8000-$BFFF | 16KB  | - PRG-ROM low page   => .nes file $0010-$400F (*)     |
+| $C000-$FFFF | 16KB  | - PRG-ROM high page  => .nes file $4010-$800F (*)     |
+| $FFFA-$FFFB | 2B    | - NMI vector         => .nes file $800A-$800B         |
+| $FFFC-$FFFD | 2B    | - Reset vector       => .nes file $800C-$800D         |
+| $FFFE-$FFFF | 2B    | - IRQ/BRK vector     => .nes file $800E-$800F         |
 +-------------+-------+-------------------------------------------------------+
-
 (*) These values are valid for games that have 32KB of PRG-ROM or less and no trainer.
 Games with more than 32KB of PRG-ROM use mappers to switch the low and/or high PRG-ROM bank with other banks on the cartridge.
-Some mappers fix a bank or a part of a bank in memory. The fixed addresses keep the same values after a bank switch.
+Some mappers fix a bank or a part of a bank in memory. The fixed banks keep the same values after a bank switch.
 Whatever bankswitch scheme is used, the vector table will always be available at the addresses $FFFA-$FFFF.
 
 ---
@@ -196,7 +203,6 @@ Whatever bankswitch scheme is used, the vector table will always be available at
 | S    | 1B   | $FD            | S -= 3         | Stack Pointer (*)                     |
 | P    | 1B   | $34            | P = P OR $04   | Processor Status Register (see Flags) |
 +------+------+----------------+----------------+---------------------------------------+
-
 (*) The Stack Pointer decrements on push and increments on pull.
 Contrary to many other systems, it points to the first FREE byte on the stack.
 It doesn't have any overflow/underflow protection (it just wraps between $00 and $FF).
@@ -220,7 +226,7 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 
 ---
 
-> Opcodes 0-255:
+> Opcodes $00-$FF, including unofficial opcodes
 
      +----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------|
      | 00       | 01        | 02        | 03        | 04        | 05        | 06        | 07        | 08        | 09        | 0A        | 0B        | 0C        | 0D        | 0E        | 0F        |
@@ -249,13 +255,13 @@ The following table details how each opcode works:
 - In the flags column, the letters CZIDBVN tells which CPU flags are affected.
 - In the cycles column, the number indicates how many CPU cycles are spent to execute the opcode for each addressing mode:
   Implicit / Accumulator / Immediate / Zero Page / Zero Page, X / Zero Page, Y / Absolute / Absolute, X / Absolute, Y / Relative / (Indirect) / (Indirect, X) / (Indirect), Y
-  "+" means that 1 extra cycle is used during write or during a read on a different page (cross-page read).
+  "+" means that 1 extra cycle is used during write or during a read on a different page (called cross-page read).
   "*" means that 1 extra cycle is used if the branch succeeds and 2 extra cycles are used if the branch goes to a new page.
 - In the operation column, the affected registers and flags are before the "=", and the operation is after the "=".
   parameters A/X/Y represent CPU registers, C/Z/I/D/B/V/N represent CPU flags. M is a memory byte.
   Mi represents the i'th bit of M. Ex: M6.
 
-+-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
++-----+---------+----------------------------------------------------------------+-----------------------+----------------------------------------------------------------------------------------------------------------------+
 |     |         |                          Cycles                                |                       |                                                                                                                      |
 | Op  | Flags   |Impl|A   |Imm |zp  |zpx |zpy |abs |absx|absy|rel |ind |indx|indy| Operation             | Details                                                                                                              |
 +-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
@@ -316,9 +322,7 @@ The following table details how each opcode works:
 | TXS | ------- | 2  |    |    |    |    |    |    |    |    |    |    |    |    | S = X                 | Copy X in S.                                                                                                         |
 | TYA | -Z----N | 2  |    |    |    |    |    |    |    |    |    |    |    |    | A = Y                 | Copy Y in A. Z: set if A = 0. N: set if bit 7 of A is set.                                                           |
 +-----+---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
-
-(*) Buggy indirect jump:
-    If the indirect vector falls on a page boundary ($xxFF), it will fetch the bits 4-7 from $xxFF as expected, and the bits 0-3 from $xx00.
+(*) Buggy indirect jump: if the indirect vector falls on a page boundary ($xxFF), it will fetch the bits 4-7 from $xxFF as expected, and the bits 0-3 from $xx00.
 
 ---
 
@@ -327,16 +331,15 @@ The following table details how each opcode works:
 Indexed:
 
 +-------+-------------------+---------------------------------------------------------------------+--------+
-| Abbr  | Name              | Formula                                                            | Cycles |
+| Abbr  | Name              | Formula                                                             | Cycles |
 +-------+-------------------+---------------------------------------------------------------------+--------+
 | d,x   | Zero page indexed | val = PEEK((arg + X) % 256)                                         | 4      |
 | d,y   | Zero page indexed | val = PEEK((arg + Y) % 256)                                         | 4      |
-| a,x   | Absolute indexed  | val = PEEK(arg + X)                                                | 4+     |
+| a,x   | Absolute indexed  | val = PEEK(arg + X)                                                 | 4+     |
 | a,y   | Absolute indexed  | val = PEEK(arg + Y)                                                 | 4+     |
 | (d,x) | Indexed indirect  | val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256) | 6      |
-| (d),y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)            | 5+     |
+| (d),y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)             | 5+     |
 +-------+-------------------+---------------------------------------------------------------------+--------+
-(+) means that a cycle is added on write or "page wrapping" (?)
 
 Others:
 
@@ -370,9 +373,7 @@ Others:
 +---------+-----------------------------------------------------+
 | 2006h   | VRAM Address Register (W2)                          |
 | 2007h   | VRAM Read/Write Data Register (RW)                  |
-+---------+-----------------------------------------------------+
-
-+---------+-----------------------------------------------------+
++ - - - - + - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | 4000h   | APU Channel 1 (Rectangle) Volume/Decay (W)          |
 | 4001h   | APU Channel 1 (Rectangle) Sweep (W)                 |
 | 4002h   | APU Channel 1 (Rectangle) Frequency (W)             |
@@ -406,23 +407,23 @@ Others:
 
 > Joypads:
 
-Dozens of different controllers exist, only the standard joypads (for players 1 & 2) are covered here.
+Dozens of different controllers exist, only the standard joypads (for players 1 & 2) are described here.
 - Writing "1" on port $4016 (bit 0) enables strobe (buttons status request) for both joypads.
 - Then, writing "0" on the same bit allows the CPU to read the buttons statuses sequentially (otherwise, only the first button will be accessible).
-- Then, reading the bit 0 on port $4016 (for joypad 1) or $4017 (for joypad 2) retrieves the status of each button, in this order:
+- Then, reading repeatedly the bit 0 on port $4016 (for joypad 1) or $4017 (for joypad 2) retrieves the status of each button, in this order:
 
-+-----+--------+
-| Bit | Button |
-+-----+--------+
-| 0   | A      |
-| 1   | B      |
-| 2   | Select |
-| 3   | Start  |
-| 4   | Up     |
-| 5   | Down   |
-| 6   | Left   |
-| 7   | Right  |
-+-----+--------+
++------+--------+
+| Read | Button |
++------+--------+
+| 1    | A      |
+| 2    | B      |
+| 3    | Select |
+| 4    | Start  |
+| 5    | Up     |
+| 6    | Down   |
+| 7    | Left   |
+| 8    | Right  |
++------+--------+
  
 - Value 1 means "pressed", and 0 means "released".
 - Buttons Start and Select are absent on some "joypad 2" controllers and will always return 0.
@@ -450,6 +451,7 @@ When an interrupt occurs, the system must:
 - After executing a RTI (Return From Interrupt) instruction, pull PC and P from the stack.
 - Resume execution of the program.
 
+TODO: more detail for some CPU registers...?
 
 IV. PPU (Picture Processing Unit)
 ---------------------------------
@@ -466,10 +468,10 @@ The PPU loops through all the (visible and invisible) dots of the screen:
 Every scanline from 0 to 261 is preceded by a pre-rending scanline where the PPU fetches the sprites to draw at the next scanline.
 
      0                                  256           341
-   0 +-----------------------------------+-------------+ --> dots
-     |   ##                ##            |             |
-     |  ####              ####           |             |
-     |                                   |             |
+   0 +-----------------------------------+-------------+  +--> dots
+     |   ##                ##            |             |  |
+     |  ####              ####           |             |  v
+     |                                   |             |  scanlines
      |                                   |             |
      |                                  #|             |
      | Visible scanlines               ##| HBlank dots |
@@ -484,13 +486,10 @@ Every scanline from 0 to 261 is preceded by a pre-rending scanline where the PPU
      | VBlank scanlines                                |
      | (20 on NTSC, 70 on PAL)                         |
      +-------------------------------------------------+
-     |
-     v
-  scanlines
 
 ---
 
-> PPU + OAM memory map (64KB + 128B):
+> PPU memory map (64KB + 128B):
 
 PPU:
 
@@ -514,7 +513,6 @@ PPU:
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $4000-$FFFF | 32MB  | Mirror of $0000-$3FFF                                    |
 +-------------+-------+----------------------------------------------------------+
-
 (*) These values are valid for games that have 32KB of PRG-ROM and 8KB of CHR-ROM.
 Games with more than 32KB of PRG-ROM will have their CHR-ROM data stored at a higher address. 
 Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses (see VI. Mappers).
