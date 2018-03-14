@@ -37,38 +37,38 @@ The file starts with a 16B header containing all the metadata required to emulat
 
 > Header
 
-+------+-------+-------------------------------------------------------------------------------------+
-| Byte | Value | Use                                                                                 |
-+------+-------+-------------------------------------------------------------------------------------+
-| 0    | $4E   | "N" char                                                                            |
-| 1    | $45   | "E" char                                                                            |
-| 2    | $53   | "S" char                                                                            |
-| 3    | $1A   | <EOF> char                                                                          |
-+------+-------+-------------------------------------------------------------------------------------+
-| 4    | $xx   | Number of 16KB PRG-ROM banks                                                        |
-| 5    | $xx   | Number of 8KB CHR-ROM banks (if 0 => use 1 CHR-RAM bank)                            |
-+------+-------+-------------------------------------------------------------------------------------+
-| 6    | $xx   | Flags 6 (see below)                                                                 |
-| 7    | $xx   | Flags 7 (see below)                                                                 |
-+------+-------+-------------------------------------------------------------------------------------+
-| 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (0 => add 1 bank for better compatibility)  |
-|      |       | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)             |
-+------+-------+-------------------------------------------------------------------------------------+
-| 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL)                                            |
-|      |       | - iNES 2.0: CHR ROM size extension (bits 0-3), PRG-ROM size extension (bits 4-7)    |
-+------+-------+-------------------------------------------------------------------------------------+
-| 10   | $xx   | iNES 2.0: PRG-RAM NOT battery-packed (bits 0-3) and battery-packed (bits 4-7) (*)   |
-| 11   | $xx   | iNES 2.0: CHR-RAM NOT battery-packed (bits 0-3) and battery-packed (bits 4-7) (*)   |
-+------+-------+-------------------------------------------------------------------------------------+
-| 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL. Bit 1: both                                            |
-+------+-------+-------------------------------------------------------------------------------------+
-| 13   | $xx   | iNES 2.0: Vs. arcade system configuration. PPU mode (bits 0-4), Vs. mode (bits 4-7) |
-+------+-------+-------------------------------------------------------------------------------------+
-| 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROM banks (bits 0-1)                          |
-+------+-------+-------------------------------------------------------------------------------------+
-| 15   | $00   | Reserved                                                                            |
-+------+-------+-------------------------------------------------------------------------------------+
-(*) In bytes 10 and 11, the 4-bit sizes (N) use a logarithmic scale: 0 => 0 byte / 1-14 => 128 * 2 ^ N bytes / 15 => reserved.
++------+-------+-----------------------------------------------------------------------------------------+
+| Byte | Value | Use                                                                                     |
++------+-------+-----------------------------------------------------------------------------------------+
+| 0    | $4E   | "N" char                                                                                |
+| 1    | $45   | "E" char                                                                                |
+| 2    | $53   | "S" char                                                                                |
+| 3    | $1A   | <EOF> char                                                                              |
++------+-------+-----------------------------------------------------------------------------------------+
+| 4    | $xx   | Number of 16KB PRG-ROM banks                                                            |
+| 5    | $xx   | Number of 8KB CHR-ROM banks (if 0 => use 1 CHR-RAM bank)                                |
++------+-------+-----------------------------------------------------------------------------------------+
+| 6    | $xx   | Flags 6 (see below)                                                                     |
+| 7    | $xx   | Flags 7 (see below)                                                                     |
++------+-------+-----------------------------------------------------------------------------------------+
+| 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (0 => add 1 bank for better compatibility)      |
+|      |       | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)                 |
++------+-------+-----------------------------------------------------------------------------------------+
+| 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL), do not rely blindly on this value if it's 0   |
+|      |       | - iNES 2.0: bits 8-11 of CHR-ROM size (bits 0-3), bits 8-11 of PRG-ROM size (bits 4-7)  |
++------+-------+-----------------------------------------------------------------------------------------+
+| 10   | $xx   | iNES 2.0: PRG-RAM NOT battery-backed (bits 0-3) and battery-backed (bits 4-7) (*)       |
+| 11   | $xx   | iNES 2.0: CHR-RAM NOT battery-backed (bits 0-3) and battery-backed (bits 4-7) (*)       |
++------+-------+-----------------------------------------------------------------------------------------+
+| 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL (do not rely blindly on this value if it's 0). Bit 1: both) |
++------+-------+-----------------------------------------------------------------------------------------+
+| 13   | $xx   | iNES 2.0: Vs. arcade system configuration: PPU mode (bits 0-4), Vs. mode (bits 4-7)     |
++------+-------+-----------------------------------------------------------------------------------------+
+| 14   | $xx   | iNES 2.0: amount of extra non-PRG/CHR ROM banks (bits 0-1)                              |
++------+-------+-----------------------------------------------------------------------------------------+
+| 15   | $00   | Reserved                                                                                |
++------+-------+-----------------------------------------------------------------------------------------+
+(*) In bytes 10 and 11, the 4-bit sizes (N) use a logarithmic scale. 0: 0 byte / 1-14: 128 * 2^N bytes / 15: reserved.
 
 Flags 6:
 
@@ -79,10 +79,7 @@ Flags 6:
 | 1   | Cartridge contains battery-backed PRG-RAM (CPU $6000-$7FFF) |
 | 2   | Cartridge contains a 512B trainer (CPU $7000-$71FF)         |
 | 3   | Ignore mirroring in bit 0, use 4-screen nametable instead   |
-| 4   | \                                                           |
-| 5   |  |_ Bits 0-3 of mapper number                               |
-| 6   |  |                                                          |
-| 7   | /                                                           |
+| 4-7 | Bits 0-3 of mapper number                                   |
 +-----+-------------------------------------------------------------+
 
 Flags 7:
@@ -93,12 +90,8 @@ Flags 7:
 | 0   | Vs. arcade system                                           |
 | 1   | iNES 1.0: hint screen data (8KB, placed after CHR data)     |
 |     | iNES 2.0: PC-10 arcade system                               |
-| 2   | \_ "10" : iNES 2.0 format. Otherwise: iNES 1.0              |
-| 3   | /                                                           |
-| 4   | \                                                           |
-| 5   |  |_ Bits 4-7 of mapper number                               |
-| 6   |  |                                                          |
-| 7   | /                                                           |
+| 2-3 | If "10" : iNES 2.0 format. Otherwise: iNES 1.0              |
+| 4-7 | Bits 4-7 of mapper number                                   |
 +-----+-------------------------------------------------------------+
 
 ---
@@ -172,7 +165,7 @@ Interrupts can pause the program and execute a dedicated routine, before resumin
 | $2008-$3FFF | 8184B | Mirrors of $2000-$2007 (every 8 bytes)                |
 +-------------+-------+-------------------------------------------------------+
 | $4000-$4017 | 24B   | APU I/O registers                                     |
-| $4018-$401F | 8B    | APU I/O debug registers (normally disabled)           |
+| $4018-$401F | 8B    | APU I/O test registers (normally disabled)            |
 +-------------+-------+-------------------------------------------------------+
 | $4020-$FFFF | 48KB  | Cartridge space:                                      |
 | $4020-$5FFF | 8160B | - Expansion ROM (some mappers add extra ROM/RAM here) |
@@ -530,8 +523,8 @@ OAM:
 
 > PPU registers:
 
-PPUCTRL register (CPU $2000):
-Controls PPU operations (write only).
+CPU $2000: PPUCTRL register (write only):
+This register controls PPU operations.
 
 +-----+----------------------------------------------------------+
 | Bit | Use                                                      |
@@ -545,8 +538,8 @@ Controls PPU operations (write only).
 | 7   | NMI enable (generates NMI at the start of VBlank)        |
 +-----+----------------------------------------------------------+
 
-PPUMASK register (CPU $2001):
-Controls the rendering of sprites and backgrounds, as well as color effects (write only).
+CPU $2001: PPUMASK register (write only):
+Controls the rendering of sprites and backgrounds, as well as color effects.
 
 +-----+-------------------------------------------------+
 | Bit | Use                                             |
@@ -559,20 +552,22 @@ Controls the rendering of sprites and backgrounds, as well as color effects (wri
 | 5-7 | color emphasis for R/G/B on NTSC, G/R/B on PAL. |
 +-----+-------------------------------------------------+
 
-PPUSTATUS register (CPU $2002):
-Reflects the state of various functions inside the PPU. (read only)
+CPU $2002: PPUSTATUS register (read only):
+Reflects the state of various functions inside the PPU.
 Reading this register resets write for $2005/$2006.
 
 +-----+----------------------------------------------------------------------------+
 | Bit | Use                                                                        |
 +-----+----------------------------------------------------------------------------+
-| 5   | Sprite overflow                                                            |
+| 0-4 | The bits 0-4 previously written into a PPU register                        |
+| 5   | Sprite overflow (set if more than 8 sprites on a scanline, but buggy)      |
 | 6   | Sprite 0 hit (cleared on pre-render line)                                  |
 | 7   | VBlank (set on line 241, cleared on pre-render line or after a $2002 read) |
 +-----+----------------------------------------------------------------------------+
 
-OAMADDR register (CPU $2003):
-Address of the next OAM to be accessed (write only).
+CPU $2003: OAMADDR register (write only):
+Address of the next OAM to be accessed.
+It is automatically cleared at each HBlank tick of pre-render and visible scanlines.
 
 +-----+---------------------------+
 | Bit | Use                       |
@@ -580,7 +575,7 @@ Address of the next OAM to be accessed (write only).
 | 0-7 | OAM R/W address           |
 +-----+---------------------------+
 
-OAMDATA register (CPU $2004):
+CPU $2004: OAMDATA register (read/write):
 On write: writes OAM value at address OAMADDR and increments it.
 On read: reads OAM value at address OAMADDR.
 
@@ -590,8 +585,8 @@ On read: reads OAM value at address OAMADDR.
 | 0-7 | OAM R/W data              |
 +-----+---------------------------+
 
-PPUSCROLL register (CPU $2005):
-First write for X, second write for Y (write only).
+CPU $2005: PPUSCROLL register (write only):
+First write for X, second write for Y.
 
 +-----+---------------------------+
 | Bit | Use                       |
@@ -599,8 +594,9 @@ First write for X, second write for Y (write only).
 | 0-7 | Fine scroll position      |
 +-----+---------------------------+
 
-PPUADDR register (CPU $2006):
-First write for bits 9-16, second write for bits 0-7 (write only).
+CPU $2006: PPUADDR register (write only):
+This register is used to build a 16-bit address in the PPU memory before reading or writing some data using PPUDATA.
+First write fills bits 9-16, second write fills bits 0-7.
 
 +-----+---------------------------+
 | Bit | Use                       |
@@ -608,8 +604,8 @@ First write for bits 9-16, second write for bits 0-7 (write only).
 | 0-7 | PPU read/write address    |
 +-----+---------------------------+
 
-PPUDATA register (CPU $2007):
-VRAM data register (read/write). After access, PPUADDR increments by an amount determined by $2000, bit 2.
+CPU $2007: PPUDATA register (read/write):
+Data to read/write in VRAM. After each access, PPUADDR increments by an amount determined by $2000, bit 2.
 
 +-----+---------------------------+
 | Bit | Use                       |
@@ -617,8 +613,8 @@ VRAM data register (read/write). After access, PPUADDR increments by an amount d
 | 0-7 | PPU read/write data       |
 +-----+---------------------------+
 
-OAMDMA register (CPU $4014):
-Writing $XX will upload 256 bytes of data from CPU page $XX00-$XXFF to the internal PPU OAM (write only).
+CPU $4014: OAMDMA register (write only):
+Writing $XX will upload 256 bytes of data from CPU page $XX00-$XXFF to the internal PPU OAM.
 The operation will take 513 cycles, or 514 if the CPU is on an odd cycle.
 
 +-----+---------------------------+
@@ -773,7 +769,7 @@ In case of overlapping sprites, the priority goes from high (0) to low (63).
 +------+-----+------------------------------------------------------------------------------------------+
 | Byte | Bit | Use                                                                                      |
 +------+-----+------------------------------------------------------------------------------------------+
-| 0    | 0-7 | Y position of the top-left pixel of the sprite                                           |
+| 0    | 0-7 | X position of the top-left pixel of the sprite                                           |
 +------+-----+------------------------------------------------------------------------------------------+
 | 1    | 0-7 | - For a 8x8px sprite: tile number in the pattern table selected in PPUCTRL ($2000) bit 3 |
 |      |     | - For a 8x16px sprite:                                                                   |
@@ -791,7 +787,7 @@ In case of overlapping sprites, the priority goes from high (0) to low (63).
 > Sprite zero hit
 
 Happens when an opaque pixel of sprite 0 (defined by OAM $00-$03) overlaps an opaque pixel of background.
-In this case Bit 6 of PPUSTATUS ($2002) is set. (It will be cleared when the PPU reaches dot 1 of the pre-render line.
+In this case Bit 6 of PPUSTATUS ($2002) is set. (It will be cleared when the PPU reaches dot 1 of the pre-render line).
 
 Does not happen:
 - if BG or sprite rendering is disabled in PPUMASK ($2001).
@@ -809,19 +805,57 @@ The position of the "camera" inside the 4-screen background defined by the namet
 - then Y coordinate is written to PPUSCROLL.
 - The two higher bits of X and Y (the nametable containing the tile visible on the top-left corner) is written in bits 0-1 of PPUCTRL ($2000)
 
-In case of overflow, the viewport wraps around.
+In case of overflow, the viewport wraps around (in X and/or Y).
+In scrolling games, the tiles around the viewport are updated at each frame in order to be visible when the viewport will get to that position.
 
+Examples:
 
-+-----------+--------------+
-|----+             +-------|
-|    |             |       |
-|ort |    VRAM     | viewp-|
-|    |             |       |
-|    |             |       |
-|----+             +-------|
-+-----------+--------------+
+Horizontal wraparound in a 2-screen nametable with vertical mirroring (ex: Super Mario Bros).
 
-TODO: explain fine scroll and more details in the PPU registers
++------------+--------------+
+|----+       |      +-------|
+|    |       |      |       |
+|ort |     VRAM     | viewp-|
+|    |     0 | 1    |       |
+|----+       |      +-------|
++------------+--------------+
+|            |              |
+|            |              |
+|    VRAM MIRROR (unused)   |
+|          0 | 1            |
+|            |              |
++------------+--------------+
+
+Vertical wraparound in a 2-screen nametable with horizontal mirroring (ex: Ice Climbers).
+
++------------+--------------+
+||  -port   ||              |
+||          ||              |
+|+----------+|              |
+|            |              |
+|        0   |  VRAM    0   |
++-- VRAM  ---+- MIRROR  ----+
+|        1   | (unused) 1   |
+|            |              |
+|            |              |
+|+----------+|              |
+||   view-  ||              |
++------------+--------------+
+
+Horizontal + vertical wraparound in a 4-screen nametable with no mirroring (ex: Super Mario Bros 3).
+
++------------+--------------+
+| |          |   |          |
+|-+          |   +----------|
+|            |              |
+|          0 | 1            |
++--------- VRAM ------------+
+|          2 | 3            |
+|            |              |
+|-+          |   +----------|
+| |          |   | viewport |
+| |          |   |          |
++------------+--------------+
 
 V. APU
 ------
@@ -838,7 +872,7 @@ A simple emulator can handle "mapper 0" games only without any effort.
 A more complete he emulator has to emulate the behavior of mappers 1 to 4 (at least).
 If a game with "mapper 0" weighs more than 40KB, consider it as an unknown mapper.
 
-Mapper 0: NROM (no mapper) - used by 12.5% of all games
+> Mapper 0: NROM (no mapper) - used by 12.5% of all games
 
 - PRG-ROM: 16/32KB ($8000-$FFFF)
 - PRG-RAM: 0/2/4KB ($6000-$7FFF, mirrored to fill the whole 8KB)
@@ -847,7 +881,7 @@ Mapper 0: NROM (no mapper) - used by 12.5% of all games
 
 ---
 
-Mapper 1: MMC1 - used by 20.3% of all games
+> Mapper 1: MMC1 - used by 20.3% of all games
 
 - PRG-ROM: up to 512KB
  * 16KB fixed or window at $8000-$FFFF (initially first bank)
@@ -856,7 +890,7 @@ Mapper 1: MMC1 - used by 20.3% of all games
 - CHR-ROM: up to 128KB (4/8KB windows at PPU $000-$0FFF and/or PPU $1000-$1FFF)
 - Name table mirroring: 1-screen / horizontal / vertical (programmable)
 
-Registers:
+> Registers:
 
 Load Register ($8000-$FFFF)
 (any write to $8000-$FFFF affects this register, but leaves the ROM unchanged!)
@@ -936,7 +970,7 @@ PRG bank register ($E000-$FFFF):
 
 ---
 
-Mapper 2: UxROM - used by 11.2% of all games
+> Mapper 2: UxROM - used by 11.2% of all games
 
 - PRG-ROM: 256/4096KB PRG-ROM
  * 16KB window at $8000-$FFFF (initially first bank)
@@ -954,7 +988,7 @@ Bank select register ($8000-$FFFF):
 
 ---
 
-Mapper 3: CNROM - used by 7.7% of all games
+> Mapper 3: CNROM - used by 7.7% of all games
 
 - 16/32KB PRG-ROM
 - 32/2048KB CHR-ROM (8KB window at PPU $000-$1FFF, initially first bank)
@@ -970,7 +1004,7 @@ Bank select register ($8000-$FFFF):
 
 ---
 
-Mapper 4: MMC3 - used by 22.1% of all games
+> Mapper 4: MMC3 - used by 22.1% of all games
 
 - Up to 512K PRG-ROM
  * 8KB window at $8000-$9FFF or $C000-$DFFF
@@ -1074,10 +1108,10 @@ VII. TV standards
 | CPU speed               | 1.79MHz    | 1.66MHz  |
 +-------------------------+------------+----------+
 
-> ROM standard detection:
+> ROM TV standard detection:
 
-If a ROM file doesn't contain an iNES 2.0 header, it's impossible to know directly if it's NTSC or PAL, but:
+It's not guaranteed that the ROM header contains information about the TV standard (NTSC/PAL) in bytes 9 and 12, but some extra hints exist:
 - The filename can contain "(E)", "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC.
-- The checksum of PRG-RAM and CHR-RAM (combined) can be looked in a NES ROM database like NesCartDB (this is the most reliable approach).
+- The checksum of PRG-RAM and CHR-RAM (combined) can be looked for in a NES ROM database like NesCartDB (this is the most reliable approach).
 
 A ROM played with the wrong TV standard will play slower or faster than normal.
