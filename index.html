@@ -2,45 +2,87 @@
 <title>NES emulator</title>
 
 <style>
-* { font: 10px arial }
-table { border-collapse: collapse }
+body { font: 11px arial }
+* { font: inherit }
+table { border-collapse: collapse; width: 90%; }
+td { vertical-align: top; height: 0; width: 25%; }
+th { font-weight: bold; height: 0; background: #eee}
+td { padding: 10px; }
+table table { width: 100%; }
+table table td { padding: 2px; }
+pre { margin: 0; font-family: courier, monospace; }
+.list { height: 100px; overflow-y: scroll; font-family: courier, monospace; }
+.minilist { height: 40px; overflow-y: scroll; font-family: courier, monospace; }
+#prg_rom_low_page_info .focus { background: #def; }
+#prg_rom_high_page_info .focus { background: #def; }
+#internal_ram_info .focus { background: #fed; }
 </style>
 
-<h4>ROM</h4>
-<input type=file id=browse>
-<p id=rom_info>
+<input type=file id=browse hidden>
+
+<table border=rules>
+  <tr>
+    <th>ROM <label for=browse><button>browse</button></label>
+    <th>CPU memory
+    <!--th>PPU
+    <th>OAM
+    <th>IO
+    <th>Screen-->
+  <tr>
+    <td><div id=gamepak_info></div>
+    <td rowspan=5><div id=cpu_memory_info></div>
+    <!--td><div id=ppu_info></div>
+    <td><div id=oam_info></div>
+    <td><div id=io_info></div>
+    <td><div id=screen_info></div-->
+  <tr>
+    <th>Mapper
+  <tr>
+    <td><div id=mapper_info></div>
+  <tr>
+    <th>CPU registers / flags
+  <tr>
+    <td><div id=cpu_registers_flags_info></div>
+    
+</table>
+
+
+<script src=tools.js></script>
 <script src=gamepak.js></script>
+<script src=cpu.js></script>
 <script>
 
 // Globals
-gamepak = {}
-CPU = {}
-PPU = {}
-OAM = {}
-IO = {}
+emulator = {};
 
-// Manual demo: load a ROM and parse it
+// Init emulator/debugger based on a file and filename
+emulator.init = function(file, filename){
+  gamepak.parse_rom(file, filename);
+  console.log(gamepak);
+  CPU.init();
+  console.log(CPU);
+}
+
+// Manual demo: load a ROM and use it
 browse.onchange = function(e){
   var filename = browse.files[0].name;
   var file = new FileReader;
   file.readAsArrayBuffer(browse.files[0]),
   file.onload = function(){
-    parse_rom(file, filename);
-    console.log(gamepak);
+    emulator.init(file, filename);
   }
 }
 
-// Auto demo: load "SMB (U).nes" and parse it
+// Auto demo: load "DK (U).nes" and use it
 onload = function(){
-  filename = "SMB (U).nes";
+  filename = "DK (U).nes";
   file = new XMLHttpRequest;
   file.open('GET', filename);
   file.responseType = 'arraybuffer';
   file.send();
   file.onload = function(){
     file.result = file.response;
-    parse_rom(file, filename);
-    console.log(gamepak);
+    emulator.init(file, filename);
   }
 }
 

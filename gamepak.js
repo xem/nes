@@ -1,5 +1,8 @@
+// Global
+gamepak = {};
+
 // Parse a ROM picked with the file input
-parse_rom = function(file, filename){
+gamepak.parse_rom = function(file, filename){
 
   // Transform the file in an array of bytes
   var bytes = new Uint8Array(file.result);
@@ -175,7 +178,7 @@ parse_rom = function(file, filename){
     }
 
     
-    rom_info.innerHTML = 
+    gamepak_info.innerHTML = 
     `<table border>
       <tr><td>File<td>${filename}
       <tr><td>Format<td>iNES ${gamepak.iNES}.0
@@ -238,6 +241,6 @@ parse_rom = function(file, filename){
   
   // Other formats (currently not supported)
   else {
-    rom_info.innerHTML = "Unsupported ROM format";
+    gamepak_info.innerHTML = "Unsupported ROM format";
   }
 }

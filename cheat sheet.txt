@@ -128,7 +128,10 @@ The last 6 bytes of the first PRG-ROM bank contain 3 vectors (16-bit addresses) 
 
 These vectors are encoded in big-endian (Ex: NMI vector = [$F00B] << 8 + [$F00A]).
 
-ROM files with only 16KB of PRG-ROM (Ex: Donkey Kong, using mapper 0) have their first bank filled with 0 and the next 16KB contain the game's code.
+Special case: ROMs with only 16KB of PRG-ROM (Ex: Donkey Kong, using mapper 0):
+- The header indicates 2 PRG-ROM banks.
+- The first bank is filled with 0 (except for the last 49B, probably garbage data due to a dump error).
+- The next 16KB contain the game's code.
 In that case, the CPU memory mirrors the second bank ($C000-$FFFF) into the first ($8000-$BFFF).
 
 III. CPU
@@ -173,9 +176,9 @@ Interrupts can pause the program and execute a dedicated routine, before resumin
 | $7000-$71FF | 512B  | - trainer (if any)   => .nes file $0010-$020F         |
 | $8000-$BFFF | 16KB  | - PRG-ROM low page   => .nes file $0010-$400F (*)     |
 | $C000-$FFFF | 16KB  | - PRG-ROM high page  => .nes file $4010-$800F (*)     |
-| $FFFA-$FFFB | 2B    | - NMI vector         => .nes file $800A-$800B         |
-| $FFFC-$FFFD | 2B    | - Reset vector       => .nes file $800C-$800D         |
-| $FFFE-$FFFF | 2B    | - IRQ/BRK vector     => .nes file $800E-$800F         |
+| $FFFA-$FFFB | 2B    | - NMI vector         => .nes file $800A-$800B (*)     |
+| $FFFC-$FFFD | 2B    | - Reset vector       => .nes file $800C-$800D (*)     |
+| $FFFE-$FFFF | 2B    | - IRQ/BRK vector     => .nes file $800E-$800F (*)     |
 +-------------+-------+-------------------------------------------------------+
 (*) These values are valid for games that have 32KB of PRG-ROM or less and no trainer.
 Games with more than 32KB of PRG-ROM use mappers to switch the low and/or high PRG-ROM bank with other banks on the cartridge.
@@ -210,12 +213,15 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 | 0   | C    | Carry                                       |
 | 1   | Z    | Zero                                        |
 | 2   | I    | IRQ Disable                                 |
-| 3   | D    | Decimal Mode (for ADC/SBC opcodes)          |
+| 3   | D    | Decimal Mode (*)                            |
 | 4   | B    | Break Flag (0 = IRQ/NMI, 1 = RESET/BRK/PHP) |
-| 5   | -    | Not used (Always 1)                         |
+| 5   | -    | Not used (always 1)                         |
 | 6   | V    | Overflow                                    |
 | 7   | N    | Negative                                    |
 +-----+------+---------------------------------------------+
+(*) Decimal mode is disabled on NES.
+The instructions ADC and SBC can't use this flag to perform decimal operations.
+However, it can be set or cleared with CLD, SED, PLP and RTI, and it can be read through P.
 
 ---
 
@@ -299,7 +305,7 @@ The following table details how each opcode works:
 | PLP | CZIDBVN | 4  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Pull P from the stack, and update all the flags with the values pulled.                                              |
 | ROL | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit 7 of A or M in C. Left shift A or M. Bit 0 = saved C.                                       |
 | ROR | CZ----N |    | 2  |    | 5  | 6  |    | 6  | 7  |    |    |    |    |    |                       | Save C in a var. Put bit O of A or M in C. Right shift A or M. Bit 7 = saved C.                                      |
-| RTI | CZIDBVN | 6  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Return from interrupt: pull S (the flags) and PC from the stack.                                                     |
+| RTI | CZIDBVN | 6  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Return from interrupt: pull P (the flags) and PC from the stack.                                                     |
 | RTS | ------- | 6  |    |    |    |    |    |    |    |    |    |    |    |    |                       | Return from subroutine: pull PC-1 from the stack (see JSR).                                                          |
 | SBC | CZ---VN |    |    | 2  | 3  | 4  |    | 4  | 4+ | 4+ |    |    | 6  | 5+ | A,Z,C,N = A-M-!C      | Sub M and NOT C to A. C: 0 if bit 7 overflows. Z: set if A = 0. V: set if sign bit is wrong. N: set if bit 7 is set. |
 | SEC | C------ | 2  |    |    |    |    |    |    |    |    |    |    |    |    | C = 1                 | Set carry flag.                                                                                                      |
@@ -321,6 +327,9 @@ The following table details how each opcode works:
 
 > Addressing modes:
 
+The opcodes operand, if explicit, is encoded in the byte (or pair of bytes) that follow the instruction in PRG-ROM.
+Many encodings exist, and are called addressing modes.
+
 Indexed:
 
 +-------+-------------------+---------------------------------------------------------------------+--------+
@@ -336,17 +345,17 @@ Indexed:
 
 Others:
 
-+-------+-------------+----------------------------------------------------------------------------+
-| Abbr  | Name        | Use                                                                        |
-+-------+-------------+----------------------------------------------------------------------------+
-|       | Implicit    | No address operand, destination of results is implied. (ex: RTS, CLC)      |
-| A     | Accumulator | Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A) |
-| #v    | Immediate   | Use the next 8-bit operand rather than fetching a value from memory        |
-| d     | Zero page   | Fetch the value from an 8-bit address on the zero page                     |
-| a     | Absolute    | Fetch the value from a 16-bit address anywhere in memory                   |
-| label | Relative    | Use a 8-bit signed offset relative to the current PC (ex: BEQ, BCS)        |
-| (a)   | Indirect    | Use an address stored in a 16-bit pointer anywhere in memory (ex: JMP)     |
-+-------+-------------+----------------------------------------------------------------------------+
++-------+-------------+-------+----------------------------------------------------------------------------+
+| Abbr  | Name        | Bytes | Use                                                                        |
++-------+-------------+-------+----------------------------------------------------------------------------+
+|       | Implicit    | 0     | No address operand, destination of results is implied. (ex: RTS, CLC)      |
+| A     | Accumulator | 0     | Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A) |
+| #v    | Immediate   | 1     | Use the next 8-bit operand rather than fetching a value from memory        |
+| d     | Zero page   | 1     | Fetch the value from an 8-bit address on the zero page                     |
+| a     | Absolute    | 2     | Fetch the value from a 16-bit address anywhere in memory                   |
+| label | Relative    | 1     | Use a 8-bit signed offset relative to the current PC (ex: BEQ, BCS)        |
+| (a)   | Indirect    | ?     | Use an address stored in a 16-bit pointer anywhere in memory (ex: JMP)     |
++-------+-------------+-------+----------------------------------------------------------------------------+
 
 ---
 
