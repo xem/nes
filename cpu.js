@@ -344,7 +344,7 @@ CPU.init = function(){
   // TODO: update PRG-ROM page numbers on bankswitch
   cpu_memory_info.innerHTML = 
   `<table border>
-    <tr><td>Internal RAM
+    <tr><td>Internal RAM / stack
     <tr><td><div id=internal_ram_info class=list>
     <tr><td>PPU I/O
     <tr><td><div id=ppu_io_info class=minilist></div>

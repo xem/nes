@@ -38,5 +38,16 @@ tools.format_asm = function(pointer){
      extra_bytes = 2;
   }
   
+  // Relative (1B)
+  else if(/\*\+d/.test(asm)){
+     asm = asm.replace(/\*\+d/, " $" + tools.format4(pointer + 2 + signed8(CPU.memory[pointer + 1])));
+     extra_bytes = 2;
+  }
+  
   return [asm, extra_bytes];
+}
+
+// Convert a 8-bit value to a signed integer
+signed8 = function(n){
+  return n < 128 ? n : -256 + n;
 }

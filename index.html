@@ -4,9 +4,9 @@
 <style>
 body { font: 11px arial }
 * { font: inherit }
-table { border-collapse: collapse; width: 90%; }
-td { vertical-align: top; height: 0; width: 25%; }
-th { font-weight: bold; height: 0; background: #eee}
+table { border-collapse: collapse; table-layout: fixed; }
+td { vertical-align: top; height: 0; }
+th { font-weight: bold; height: 0; background: #eee; }
 td { padding: 10px; }
 table table { width: 100%; }
 table table td { padding: 2px; }
@@ -22,8 +22,8 @@ pre { margin: 0; font-family: courier, monospace; }
 
 <table border=rules>
   <tr>
-    <th>ROM <label for=browse><button>browse</button></label>
-    <th>CPU memory
+    <th width=180>ROM <label for=browse><button>browse</button></label>
+    <th width=250>CPU memory
     <!--th>PPU
     <th>OAM
     <th>IO

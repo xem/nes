@@ -180,14 +180,14 @@ gamepak.parse_rom = function(file, filename){
     
     gamepak_info.innerHTML = 
     `<table border>
-      <tr><td>File<td>${filename}
+      <tr><td colspan=2>File: ${filename}
       <tr><td>Format<td>iNES ${gamepak.iNES}.0
       <tr><td>TV standard<td>${gamepak.TV_system}
       <tr><td>Mapper<td>${gamepak.mapper}${gamepak.submapper ? "-" + gamepak.submapper : ""}
       <tr><td>PRG-ROM<td>${gamepak.PRG_ROM_banks} * 16KB
       <tr><td>CHR-ROM<td>${gamepak.CHR_ROM_banks} * 8KB
-      <tr><td>PRG-RAM / battery-backed<td>${gamepak.PRG_RAM_bytes_not_battery_backed / 1024}KB / ${gamepak.PRG_RAM_bytes_battery_backed / 1024}KB
-      <tr><td>CHR-RAM / battery-backed<td>${gamepak.CHR_RAM_bytes_not_battery_backed / 1024}KB / ${gamepak.CHR_RAM_bytes_battery_backed / 1024}KB
+      <tr><td>PRG-RAM<td>${gamepak.PRG_RAM_bytes_not_battery_backed / 1024}KB + ${gamepak.PRG_RAM_bytes_battery_backed / 1024}KB
+      <tr><td>CHR-RAM<td>${gamepak.CHR_RAM_bytes_not_battery_backed / 1024}KB + ${gamepak.CHR_RAM_bytes_battery_backed / 1024}KB
       <tr><td>VRAM (mirroring)<td>${gamepak.mirroring == 0 ? "0KB (horizontal)" : gamepak.mirroring == 1 ? "0KB (vertical)" : "2KB (4-screen nametable)"}
       <tr><td>Extra ROM banks<td>${gamepak.extra_ROM_banks ? (gamepak.extra_ROM_banks + " * 8KB") : 0}
       <tr><td>Trainer<td>${gamepak.trainer ? "512B" : "no"}
