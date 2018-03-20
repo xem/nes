@@ -1,4 +1,4 @@
-NES emulation cheat sheet & tiny JS NES disassembler / emulator
+NES emulation cheat sheet & tiny JS NES emulator
 ===
 
 NES emulation cheat sheet:
