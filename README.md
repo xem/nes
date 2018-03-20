@@ -4,14 +4,15 @@ NES emulation cheat sheet & tiny JS NES disassembler / emulator
 NES emulation cheat sheet:
 - https://github.com/xem/nes/blob/gh-pages/cheat%20sheet.txt
 
+<!--
 NES ROM disassembler:
 - commented: https://github.com/xem/nes/blob/gh-pages/disassembler.html
 - demo: https://xem.github.io/nes/disassembler.html
 - 1kb zip: https://github.com/xem/nes/blob/gh-pages/1k.zip
+-->
 
-(the example ROM is a public domain Super Mario clone)
-
-- NES emulator: (soon)
+- NES emulator & debugger: (wip)
+https://xem.github.io/nes/disassembler.html
 
 ---
 

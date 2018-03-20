@@ -11,28 +11,28 @@ td { padding: 10px; }
 table table { width: 100%; }
 table table td { padding: 2px; }
 pre { margin: 0; font-family: courier, monospace; }
-.list { height: 100px; overflow-y: scroll; font-family: courier, monospace; }
-.minilist { height: 40px; overflow-y: scroll; font-family: courier, monospace; }
+.list { height: 113px; overflow-y: scroll; font-family: courier, monospace; }
+.minilist { height: 57px; overflow-y: scroll; font-family: courier, monospace; }
 #prg_rom_low_page_info .focus { background: #def; }
 #prg_rom_high_page_info .focus { background: #def; }
 #internal_ram_info .focus { background: #fed; }
 </style>
 
-<input type=file id=browse hidden>
+<input type=file id=browse name=browse hidden>
 
 <table border=rules>
   <tr>
-    <th width=180>ROM <label for=browse><button>browse</button></label>
-    <th width=250>CPU memory
-    <!--th>PPU
-    <th>OAM
+    <th width=200>ROM <label for=browse onclick=browse.click()><button>browse</button></label>
+    <th width=200>CPU memory
+    <th width=284>PPU memory
+    <!--th>OAM
     <th>IO
     <th>Screen-->
   <tr>
     <td><div id=gamepak_info></div>
     <td rowspan=5><div id=cpu_memory_info></div>
-    <!--td><div id=ppu_info></div>
-    <td><div id=oam_info></div>
+    <td rowspan=5><div id=ppu_memory_info></div>
+    <!--td><div id=oam_info></div>
     <td><div id=io_info></div>
     <td><div id=screen_info></div-->
   <tr>
@@ -50,6 +50,7 @@ pre { margin: 0; font-family: courier, monospace; }
 <script src=tools.js></script>
 <script src=gamepak.js></script>
 <script src=cpu.js></script>
+<script src=ppu.js></script>
 <script>
 
 // Globals
@@ -61,6 +62,8 @@ emulator.init = function(file, filename){
   console.log(gamepak);
   CPU.init();
   console.log(CPU);
+  PPU.init();
+  console.log(PPU);
 }
 
 // Manual demo: load a ROM and use it

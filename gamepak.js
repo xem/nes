@@ -173,7 +173,7 @@ gamepak.parse_rom = function(file, filename){
     else if(/\(U\)|\(USA\)|\(J\)|\(Japan\)/i.test(filename)){
       gamepak.TV_system = "NTSC";
     }
-    else if(/\(EU\)/i.test(filename)){
+    else if(/\(EU\)|\(World\)/i.test(filename)){
       gamepak.TV_system = "PAL + NTSC";
     }
 
@@ -188,7 +188,8 @@ gamepak.parse_rom = function(file, filename){
       <tr><td>CHR-ROM<td>${gamepak.CHR_ROM_banks} * 8KB
       <tr><td>PRG-RAM<td>${gamepak.PRG_RAM_bytes_not_battery_backed / 1024}KB + ${gamepak.PRG_RAM_bytes_battery_backed / 1024}KB
       <tr><td>CHR-RAM<td>${gamepak.CHR_RAM_bytes_not_battery_backed / 1024}KB + ${gamepak.CHR_RAM_bytes_battery_backed / 1024}KB
-      <tr><td>VRAM (mirroring)<td>${gamepak.mirroring == 0 ? "0KB (horizontal)" : gamepak.mirroring == 1 ? "0KB (vertical)" : "2KB (4-screen nametable)"}
+      <tr><td>VRAM<td>${gamepak.mirroring == 0 ? "0KB" : gamepak.mirroring == 1 ? "0KB" : "2KB"}
+      <tr><td>Mirroring<td>${gamepak.mirroring == 0 ? "Horizontal" : gamepak.mirroring == 1 ? "Vertical" : "No (4-screen)"}
       <tr><td>Extra ROM banks<td>${gamepak.extra_ROM_banks ? (gamepak.extra_ROM_banks + " * 8KB") : 0}
       <tr><td>Trainer<td>${gamepak.trainer ? "512B" : "no"}
       <tr><td>Arcade<td>${gamepak.Vs ? "Vs." : gamepak.PC10 ? "PC-10" : "no"}

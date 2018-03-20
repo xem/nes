@@ -326,6 +326,7 @@ The following table details how each opcode works:
 ---
 
 > Addressing modes:
+TODO: rewrite (cf. tools.js)
 
 The opcodes operand, if explicit, is encoded in the byte (or pair of bytes) that follow the instruction in PRG-ROM.
 Many encodings exist, and are called addressing modes.
@@ -333,14 +334,14 @@ Many encodings exist, and are called addressing modes.
 Indexed:
 
 +-------+-------------------+---------------------------------------------------------------------+--------+
-| Abbr  | Name              | Formula                                                             | Cycles |
+| Abbr  | Name              | Formula (TODO: explain)                                             | Cycles |
 +-------+-------------------+---------------------------------------------------------------------+--------+
-| d,x   | Zero page indexed | val = PEEK((arg + X) % 256)                                         | 4      |
-| d,y   | Zero page indexed | val = PEEK((arg + Y) % 256)                                         | 4      |
-| a,x   | Absolute indexed  | val = PEEK(arg + X)                                                 | 4+     |
-| a,y   | Absolute indexed  | val = PEEK(arg + Y)                                                 | 4+     |
-| (d,x) | Indexed indirect  | val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256) | 6      |
-| (d),y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)             | 5+     |
+| d,X   | Zero page indexed | val = PEEK((arg + X) % 256)                                         | 4      |
+| d,Y   | Zero page indexed | val = PEEK((arg + Y) % 256)                                         | 4      |
+| a,X   | Absolute indexed  | val = PEEK(arg + X)                                                 | 4+     |
+| a,Y   | Absolute indexed  | val = PEEK(arg + Y)                                                 | 4+     |
+| (d,X) | Indexed indirect  | val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256) | 6      |
+| (d),Y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)             | 5+     |
 +-------+-------------------+---------------------------------------------------------------------+--------+
 
 Others:
@@ -349,23 +350,22 @@ Others:
 | Abbr  | Name        | Bytes | Use                                                                        |
 +-------+-------------+-------+----------------------------------------------------------------------------+
 |       | Implicit    | 0     | No address operand, destination of results is implied. (ex: RTS, CLC)      |
-| A     | Accumulator | 0     | Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A) |
-| #v    | Immediate   | 1     | Use the next 8-bit operand rather than fetching a value from memory        |
+|       | Accumulator | 0     | Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A) |
+| #i    | Immediate   | 1     | Use the next 8-bit operand rather than fetching a value from memory        |
 | d     | Zero page   | 1     | Fetch the value from an 8-bit address on the zero page                     |
 | *+d   | relative    | 1     | Use a 8-bit signed offset relative to the current PC + 2 (ex: BEQ, BCS)    |
 | a     | Absolute    | 2     | Fetch the value from a 16-bit address anywhere in memory (big-endian)      |
-| (a)   | Indirect    | ?     | Use an address stored in a 16-bit pointer anywhere in memory (ex: JMP)     |
+| (a)   | Indirect    | ?     | Use an address stored in a 16-bit pointer anywhere in memory (JMP)         |
 +-------+-------------+-------+----------------------------------------------------------------------------+
 
 ---
 
-> 8-bit signed numbers:
+> 8-bit signed numbers
 
+Signed bytes on NES use two's complement:
 - Bit 7 represents the sign.
 - Numbers 0 to 127 are encoded 00000000b to 01111111b.
 - Numbers -128 -1 are encoded 10000000b to 11111111b.
-
-Conversion function (JS): `signed = byte => byte < 128 ? byte : -256 + byte`
 
 ---
 
@@ -1131,7 +1131,7 @@ VII. TV standards
 > ROM TV standard detection:
 
 It's not guaranteed that the ROM header contains information about the TV standard (NTSC/PAL) in bytes 9 and 12, but some extra hints exist:
-- The filename can contain "(E)", "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC.
+- The filename can contain "(E)", "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC / "(EU)" or "(World)" for both.
 - The checksum of PRG-RAM and CHR-RAM (combined) can be looked for in a NES ROM database like NesCartDB (this is the most reliable approach).
 
 A ROM played with the wrong TV standard will play slower or faster than normal.

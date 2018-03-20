@@ -4,9 +4,9 @@ CPU = {};
 // Opcodes list
 CPU.opcodes = [
 "BRK",
-"ORA (d,x)",
+"ORA (d,X)",
 "STP",
-"SLO (d,x)",
+"SLO (d,X)",
 "NOP d",
 "ORA d",
 "ASL d",
@@ -20,25 +20,25 @@ CPU.opcodes = [
 "ASL a",
 "SLO a",
 "BPL *+d",
-"ORA (d),y",
+"ORA (d),Y",
 "STP",
-"SLO (d),y",
-"NOP d,x",
-"ORA d,x",
-"ASL d,x",
-"SLO d,x",
+"SLO (d),Y",
+"NOP d,X",
+"ORA d,X",
+"ASL d,X",
+"SLO d,X",
 "CLC",
-"ORA a,y",
+"ORA a,Y",
 "NOP",
-"SLO a,y",
-"NOP a,x",
-"ORA a,x",
-"ASL a,x",
-"SLO a,x",
+"SLO a,Y",
+"NOP a,X",
+"ORA a,X",
+"ASL a,X",
+"SLO a,X",
 "JSR a",
-"AND (d,x)",
+"AND (d,X)",
 "STP",
-"RLA (d,x)",
+"RLA (d,X)",
 "BIT d",
 "AND d",
 "ROL d",
@@ -52,25 +52,25 @@ CPU.opcodes = [
 "ROL a",
 "RLA a",
 "BMI *+d",
-"AND (d),y",
+"AND (d),Y",
 "STP",
-"RLA (d),y",
-"NOP d,x",
-"AND d,x",
-"ROL d,x",
-"RLA d,x",
+"RLA (d),Y",
+"NOP d,X",
+"AND d,X",
+"ROL d,X",
+"RLA d,X",
 "SEC",
-"AND a,y",
+"AND a,Y",
 "NOP",
-"RLA a,y",
-"NOP a,x",
-"AND a,x",
-"ROL a,x",
-"RLA a,x",
+"RLA a,Y",
+"NOP a,X",
+"AND a,X",
+"ROL a,X",
+"RLA a,X",
 "RTI",
-"EOR (d,x)",
+"EOR (d,X)",
 "STP",
-"SRE (d,x)",
+"SRE (d,X)",
 "NOP d",
 "EOR d",
 "LSR d",
@@ -84,25 +84,25 @@ CPU.opcodes = [
 "LSR a",
 "SRE a",
 "BVC *+d",
-"EOR (d),y",
+"EOR (d),Y",
 "STP",
-"SRE (d),y",
-"NOP d,x",
-"EOR d,x",
-"LSR d,x",
-"SRE d,x",
+"SRE (d),Y",
+"NOP d,X",
+"EOR d,X",
+"LSR d,X",
+"SRE d,X",
 "CLI",
-"EOR a,y",
+"EOR a,Y",
 "NOP",
-"SRE a,y",
-"NOP a,x",
-"EOR a,x",
-"LSR a,x",
-"SRE a,x",
+"SRE a,Y",
+"NOP a,X",
+"EOR a,X",
+"LSR a,X",
+"SRE a,X",
 "RTS",
-"ADC (d,x)",
+"ADC (d,X)",
 "STP",
-"RRA (d,x)",
+"RRA (d,X)",
 "NOP d",
 "ADC d",
 "ROR d",
@@ -116,25 +116,25 @@ CPU.opcodes = [
 "ROR a",
 "RRA a",
 "BVS *+d",
-"ADC (d),y",
+"ADC (d),Y",
 "STP",
-"RRA (d),y",
-"NOP d,x",
-"ADC d,x",
-"ROR d,x",
-"RRA d,x",
+"RRA (d),Y",
+"NOP d,X",
+"ADC d,X",
+"ROR d,X",
+"RRA d,X",
 "SEI",
-"ADC a,y",
+"ADC a,Y",
 "NOP",
-"RRA a,y",
-"NOP a,x",
-"ADC a,x",
-"ROR a,x",
-"RRA a,x",
+"RRA a,Y",
+"NOP a,X",
+"ADC a,X",
+"ROR a,X",
+"RRA a,X",
 "NOP #i",
-"STA (d,x)",
+"STA (d,X)",
 "NOP #i",
-"SAX (d,x)",
+"SAX (d,X)",
 "STY d",
 "STA d",
 "STX d",
@@ -148,25 +148,25 @@ CPU.opcodes = [
 "STX a",
 "SAX a",
 "BCC *+d",
-"STA (d),y",
+"STA (d),Y",
 "STP",
-"AHX (d),y",
-"STY d,x",
-"STA d,x",
-"STX d,y",
-"SAX d,y",
+"AHX (d),Y",
+"STY d,X",
+"STA d,X",
+"STX d,Y",
+"SAX d,Y",
 "TYA",
-"STA a,y",
+"STA a,Y",
 "TXS",
-"TAS a,y",
-"SHY a,x",
-"STA a,x",
-"SHX a,y",
-"AHX a,y",
+"TAS a,Y",
+"SHY a,X",
+"STA a,X",
+"SHX a,Y",
+"AHX a,Y",
 "LDY #i",
-"LDA (d,x)",
+"LDA (d,X)",
 "LDX #i",
-"LAX (d,x)",
+"LAX (d,X)",
 "LDY d",
 "LDA d",
 "LDX d",
@@ -180,25 +180,25 @@ CPU.opcodes = [
 "LDX a",
 "LAX a",
 "BCS *+d",
-"LDA (d),y",
+"LDA (d),Y",
 "STP",
-"LAX (d),y",
-"LDY d,x",
-"LDA d,x",
-"LDX d,y",
-"LAX d,y",
+"LAX (d),Y",
+"LDY d,X",
+"LDA d,X",
+"LDX d,Y",
+"LAX d,Y",
 "CLV",
-"LDA a,y",
+"LDA a,Y",
 "TSX",
-"LAS a,y",
-"LDY a,x",
-"LDA a,x",
-"LDX a,y",
-"LAX a,y",
+"LAS a,Y",
+"LDY a,X",
+"LDA a,X",
+"LDX a,Y",
+"LAX a,Y",
 "CPY #i",
-"CMP (d,x)",
+"CMP (d,X)",
 "NOP #i",
-"DCP (d,x)",
+"DCP (d,X)",
 "CPY d",
 "CMP d",
 "DEC d",
@@ -212,25 +212,25 @@ CPU.opcodes = [
 "DEC a",
 "DCP a",
 "BNE *+d",
-"CMP (d),y",
+"CMP (d),Y",
 "STP",
-"DCP (d),y",
-"NOP d,x",
-"CMP d,x",
-"DEC d,x",
-"DCP d,x",
+"DCP (d),Y",
+"NOP d,X",
+"CMP d,X",
+"DEC d,X",
+"DCP d,X",
 "CLD",
-"CMP a,y",
+"CMP a,Y",
 "NOP",
-"DCP a,y",
-"NOP a,x",
-"CMP a,x",
-"DEC a,x",
-"DCP a,x",
+"DCP a,Y",
+"NOP a,X",
+"CMP a,X",
+"DEC a,X",
+"DCP a,X",
 "CPX #i",
-"SBC (d,x)",
+"SBC (d,X)",
 "NOP #i",
-"ISC (d,x)",
+"ISC (d,X)",
 "CPX d",
 "SBC d",
 "INC d",
@@ -244,31 +244,30 @@ CPU.opcodes = [
 "INC a",
 "ISC a",
 "BEQ *+d",
-"SBC (d),y",
+"SBC (d),Y",
 "STP",
-"ISC (d),y",
-"NOP d,x",
-"SBC d,x",
-"INC d,x",
-"ISC d,x",
+"ISC (d),Y",
+"NOP d,X",
+"SBC d,X",
+"INC d,X",
+"ISC d,X",
 "SED",
-"SBC a,y",
+"SBC a,Y",
 "NOP",
-"ISC a,y",
-"NOP a,x",
-"SBC a,x",
-"INC a,x",
-"ISC a,x",
+"ISC a,Y",
+"NOP a,X",
+"SBC a,X",
+"INC a,X",
+"ISC a,X",
 ];
 
 // Init CPU memory, flags, UI
 CPU.init = function(){
   
-  // CPU memory map
-  CPU.memory = [];
-  for(var i = 0; i < 0xFFFF; i++){
-    CPU.memory[i] = 0;
-  }
+  // CPU memory map (64KB) + 2 views (signed int / unsigned int)
+  CPU.memory_buffer = new ArrayBuffer(64 * 1024);
+  CPU.memory_signed = new Int8Array(CPU.memory_buffer);
+  CPU.memory = new Uint8Array(CPU.memory_buffer);
   
   // Place trainer in memory ($7000-$71FF), if any
   for(i = 0; i < gamepak.trainer.length; i++){
@@ -341,15 +340,13 @@ CPU.init = function(){
   // UI
   
   // Table
-  // TODO: update PRG-ROM page numbers on bankswitch
+  // TODO: update PRG-ROM bank numbers on bankswitch
   cpu_memory_info.innerHTML = 
   `<table border>
     <tr><td>Internal RAM / stack
-    <tr><td><div id=internal_ram_info class=list>
-    <tr><td>PPU I/O
-    <tr><td><div id=ppu_io_info class=minilist></div>
-    <tr><td>APU I/O
-    <tr><td><div id=apu_io_info class=minilist></div>
+    <tr><td><div id=internal_ram_info class=minilist>
+    <tr><td>I/O
+    <tr><td><div id=io_info class=minilist></div>
     <tr><td>PRG-RAM
     <tr><td><div id=prg_ram_info class=minilist></div></div>
     <tr><td>PRG-ROM low page (bank 0)
@@ -370,14 +367,14 @@ CPU.init = function(){
   for(i = 0x2000; i < 0x2008; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)} : 00</div>`;
   }
-  ppu_io_info.innerHTML = html;
+  io_info.innerHTML = html;
   
   // APU I/O
   var html = "";
   for(i = 0x4000; i < 0x4018; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)} : 00</div>`;
   }
-  apu_io_info.innerHTML = html;
+  io_info.innerHTML = html;
   
   // PRG-RAM
   var html = "";
@@ -388,40 +385,36 @@ CPU.init = function(){
 
   // PRG-ROM low page
   var html = "";
-  var bytes_read = 0;
+  
   var asm = "";
   var formatted_asm = "";
   for(i = 0x8000; i < 0xC000; i++){
-    if(bytes_read == 0){
-      formatted_asm = tools.format_asm(i);
-      asm = formatted_asm[0];
-      bytes_read = formatted_asm[1];
-      if(i == 0xc7a0) console.log(asm);
-      html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])} ; ${asm}</div>`;
-    }
-    else {
-      bytes_read--;
-      html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])}</div>`;
-    }
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])}</div>`;
   }
   prg_rom_low_page_info.innerHTML = html;
   
   // PRG-ROM high page
   var html = "";
   for(i = 0xC000; i <= 0xFFFF; i++){
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])}</div>`;
+  }
+  prg_rom_high_page_info.innerHTML = html;
+  
+  // Format ASM from reset vector to $FFFF
+  var bytes_read = 0;
+  for(i = CPU.reset_vector; i < 0xFFFF; i++){
     if(bytes_read == 0){
       formatted_asm = tools.format_asm(i);
       asm = formatted_asm[0];
       bytes_read = formatted_asm[1];
-      if(i == 0xc7a8) console.log(asm);
-      html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])} ; ${asm}</div>`;
+      window[`cpu_byte_${i}`].innerHTML += ` ; ${asm}`;
     }
     else {
       bytes_read--;
-      html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])}</div>`;
     }
   }
-  prg_rom_high_page_info.innerHTML = html;
+  
+  
   
   // Mapper
   mapper_info.innerHTML =
@@ -433,12 +426,12 @@ CPU.init = function(){
   
   // Flags
   cpu_registers_flags_info.innerHTML =
-  `<table border style="width:70px;float:left;margin:0 10px 0 0">
-    <tr><td>A<td><pre>${tools.format2(CPU.A)}</pre>
+  `<table border style="width:100px;float:left;margin:0 10px 0 0">
+    <tr><td width=40>A<td width=50><pre>${tools.format2(CPU.A)}</pre>
     <tr><td>X<td><pre>${tools.format2(CPU.X)}</pre>
     <tr><td>Y<td><pre>${tools.format2(CPU.Y)}</pre>
-    <tr style=background:#def><td>PC<td><pre>${tools.format4(CPU.PC)}</pre>
-    <tr style=background:#fed><td>S<td><pre>${tools.format2(CPU.S)}</pre>
+    <tr style=background:#def><td>PC<td><pre onclick='tools.focus("cpu_byte_" + CPU.PC)'>${tools.format4(CPU.PC)}</pre>
+    <tr style=background:#fed><td>S<td><pre onclick='tools.focus("cpu_byte_" + CPU.S)'>${tools.format2(CPU.S)}</pre>
     <tr><td>P<td><pre>${tools.format2(CPU.P)}</pre>
   </table>
   
@@ -457,4 +450,7 @@ CPU.init = function(){
   
   // Focus on first instruction in PRG_ROM (PC = reset vector)
   tools.focus("cpu_byte_" + CPU.PC);
+
+  // Debug
+  //tools.focus("cpu_byte_" + 0x8e16);
 }
