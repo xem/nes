@@ -2,13 +2,13 @@
  NES emulation cheat-sheet 
 ===========================
 
-This document aims to summarize everything that must be known to develop a NES emulator.
+This document aims to summarize everything all there is to know in order to develop a NES emulator.
 
 I. Physical cartridge (Game PAK)
 --------------------------------
 
 Cartridges always contain at least one PRG-ROM bank and one CHR bank (ROM or RAM).
-Some games contain extra chips to extend the NES processing power or to save the player's progress.
+Some games contain extra chips to extend the NES's RAM or to save the player's progress.
 
 +---------+--------+--------+-----------------------------------------------------+
 | Banks   | Size   | Number | Use                                                 |
@@ -111,19 +111,19 @@ Right after the header, the ROM file contains:
 
 - A 512B trainer (if enabled in Flags 6, bit 2).
 - The 16KB PRG-ROM banks.
-- The 8KB CHR-ROM bank(s).
-- The 8KB hint screen data (if enabled in Flags 7, bit 1, in iNES 1.0).
+- The 8KB CHR-ROM bank(s) (keep in mind that some games have 0).
+- The 8KB hint screen data (if enabled in Flags 7, bit 1, in iNES 1.0) or extra ROM banks (iNES 2.0).
 
 > Interrupt vector table
 
-The last 6 bytes of the first PRG-ROM bank contain 3 vectors (16-bit addresses) used by the CPU in certain conditions (see III. CPU > Interrupts):
+The last 6 bytes of the last PRG-ROM bank contain 3 vectors (16-bit addresses) used by the CPU in certain conditions (see III. CPU > Interrupts):
 
 +---------+-------------+---------------------------------------------------+
 | Vector  | Bytes       | Use                                               |
 +---------+-------------+---------------------------------------------------+
-| NMI     | $3FFA-$3FFB | Jump here after a non-maskable interrupt          |
-| Reset   | $3FFC-$3FFD | Jump here after a reset (and on boot)             |
-| IRQ/BRK | $3FFE-$3FFF | Jump here after an interrupt request or a BRK/PHP |
+| NMI     | $FFFA-$FFFB | Jump here after a non-maskable interrupt          |
+| Reset   | $FFFC-$FFFD | Jump here after a reset (and on boot)             |
+| IRQ/BRK | $FFFE-$FFFF | Jump here after an interrupt request or a BRK/PHP |
 +---------+-------------+---------------------------------------------------+
 
 These vectors are encoded in big-endian (Ex: NMI vector = [$F00B] << 8 + [$F00A]).
@@ -142,6 +142,7 @@ III. CPU
 The CPU executes the opcode (instruction) stored at the address pointed by the PC register.
 Some instructions are followed by immediate operands (1 or 2 bytes).
 Instructions take 2 to 7 CPU cycles (also called ticks) to execute, and generally involve the status registers and/or the memory.
+PC is incremented after each instruction (1, 2 or 3 bytes, depending on the size of the opcode plus the operand).
 Some memory addresses are used to control (or read data from) other components (cartridge mapper, PPU, APU, joypads...).
 Interrupts can pause the program and execute a dedicated routine, before resuming normal execution.
 
@@ -326,37 +327,36 @@ The following table details how each opcode works:
 ---
 
 > Addressing modes:
-TODO: rewrite (cf. tools.js)
 
 The opcodes operand, if explicit, is encoded in the byte (or pair of bytes) that follow the instruction in PRG-ROM.
-Many encodings exist, and are called addressing modes.
+Many encodings of this operand exist, and are called addressing modes.
 
 Indexed:
 
-+-------+-------------------+---------------------------------------------------------------------+--------+
-| Abbr  | Name              | Formula (TODO: explain)                                             | Cycles |
-+-------+-------------------+---------------------------------------------------------------------+--------+
-| d,X   | Zero page indexed | val = PEEK((arg + X) % 256)                                         | 4      |
-| d,Y   | Zero page indexed | val = PEEK((arg + Y) % 256)                                         | 4      |
-| a,X   | Absolute indexed  | val = PEEK(arg + X)                                                 | 4+     |
-| a,Y   | Absolute indexed  | val = PEEK(arg + Y)                                                 | 4+     |
-| (d,X) | Indexed indirect  | val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256) | 6      |
-| (d),Y | Indirect indexed  | val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)             | 5+     |
-+-------+-------------------+---------------------------------------------------------------------+--------+
++-------+-------------------+-------+-----------------------------------------------------------------+
+| Abbr. | Name              | Bytes | Formula for the opcode's operand                                |
++-------+-------------------+-------+-----------------------------------------------------------------+
+| d,X   | Zero page indexed | 1 (d) | memory[(d + X) % 256]                                           |
+| d,Y   | Zero page indexed | 1 (d) | memory[(d + Y) % 256]                                           |
+| a,X   | Absolute indexed  | 1 (a) | memory[a + X]                                                   |
+| a,Y   | Absolute indexed  | 1 (a) | memory[a + Y]                                                   |
+| (d,X) | Indexed indirect  | 1 (d) | memory[memory[(d + X) % 256] + memory[(d + X + 1) % 256] * 256] |
+| (d),Y | Indirect indexed  | 1 (d) | memory[memory[d] + memory[(d + 1) % 256] * 256 + Y]             |
++-------+-------------------+-------------------------------------------------------------------------+
 
 Others:
 
-+-------+-------------+-------+----------------------------------------------------------------------------+
-| Abbr  | Name        | Bytes | Use                                                                        |
-+-------+-------------+-------+----------------------------------------------------------------------------+
-|       | Implicit    | 0     | No address operand, destination of results is implied. (ex: RTS, CLC)      |
-|       | Accumulator | 0     | Some instructions operate on the accumulator implicitly. (ex: LSR = LSR A) |
-| #i    | Immediate   | 1     | Use the next 8-bit operand rather than fetching a value from memory        |
-| d     | Zero page   | 1     | Fetch the value from an 8-bit address on the zero page                     |
-| *+d   | relative    | 1     | Use a 8-bit signed offset relative to the current PC + 2 (ex: BEQ, BCS)    |
-| a     | Absolute    | 2     | Fetch the value from a 16-bit address anywhere in memory (big-endian)      |
-| (a)   | Indirect    | ?     | Use an address stored in a 16-bit pointer anywhere in memory (JMP)         |
-+-------+-------------+-------+----------------------------------------------------------------------------+
++-------+-------------+-------+-----------------------------------------------+
+| Abbr. | Name        | Bytes | Formula for the opcode's operand              |
++-------+-------------+-------+-----------------------------------------------+
+|       | Implicit    | 0     | No operand or implied operand. (ex: RTS, CLC) |
+|       | Accumulator | 0     | operand = A (A is implied. ex: LSR == LSR A)  |
+| #i    | Immediate   | 1 (i) | operand = #i                                  |
+| d     | Zero page   | 1 (d) | operand = memory[d]                           |
+| *+d   | relative    | 1 (d) | operand = PC + 2 + signed(d)                  |
+| a     | Absolute    | 2 (a) | operand = memory[a]                           |
+| (a)   | Indirect    | 2 (a) | operand = memory[a + 1] << 8 + memory[a]      |
++-------+-------------+-------+-----------------------------------------------+
 
 ---
 
@@ -526,7 +526,7 @@ PPU:
 | $4000-$FFFF | 32MB  | Mirror of $0000-$3FFF                                    |
 +-------------+-------+----------------------------------------------------------+
 (*) These values are valid for games that have 32KB of PRG-ROM and 8KB of CHR-ROM.
-Games with more than 32KB of PRG-ROM will have their CHR-ROM data stored at a higher address. 
+Games with more than 32KB of PRG-ROM will have their CHR-ROM data stored at a higher address inside the ROM file. 
 Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses (see VI. Mappers).
 The pattern tables contain 8x8px tiles used in the game's background (see nametables) and sprites (see OAM).
 
@@ -535,7 +535,7 @@ OAM:
 +-------------+-------+----------------------------------------------------------+
 | Address     | Size  | Use                                                      |
 +-------------+-------+----------------------------------------------------------+
-| $00-$FF     | 128B  | Sprites properties                                       |
+| $00-$FF     | 256B  | Sprites properties                                       |
 +-------------+-------+----------------------------------------------------------+
 
 ---
@@ -783,7 +783,7 @@ Each 1KB of VROM contains:
 
 > OAM (Object Attribute Memory)
 
-Up to 64 sprites can be displayed at once, each one is represented by a 4-byte entry in the OAM.
+Up to 64 sprites can be displayed at once, each one is represented by a 4-byte entry in the OAM memory.
 In case of overlapping sprites, the priority goes from high (0) to low (63).
 
 +------+-----+------------------------------------------------------------------------------------------+

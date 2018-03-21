@@ -11,8 +11,9 @@ td { padding: 10px; }
 table table { width: 100%; }
 table table td { padding: 2px; }
 pre { margin: 0; font-family: courier, monospace; }
-.list { height: 113px; overflow-y: scroll; font-family: courier, monospace; }
+.list { height: 125px; overflow-y: scroll; font-family: courier, monospace; }
 .minilist { height: 57px; overflow-y: scroll; font-family: courier, monospace; }
+.maxilist { height: 235px; overflow-y: scroll; font-family: courier, monospace; }
 #prg_rom_low_page_info .focus { background: #def; }
 #prg_rom_high_page_info .focus { background: #def; }
 #internal_ram_info .focus { background: #fed; }
@@ -23,22 +24,26 @@ pre { margin: 0; font-family: courier, monospace; }
 <table border=rules>
   <tr>
     <th width=200>ROM <label for=browse onclick=browse.click()><button>browse</button></label>
-    <th width=200>CPU memory
-    <th width=284>PPU memory
+    <th width=220>CPU memory
+    <th colspan=4>PPU memory
     <!--th>OAM
     <th>IO
     <th>Screen-->
   <tr>
     <td><div id=gamepak_info></div>
     <td rowspan=5><div id=cpu_memory_info></div>
-    <td rowspan=5><div id=ppu_memory_info></div>
-    <!--td><div id=oam_info></div>
-    <td><div id=io_info></div>
-    <td><div id=screen_info></div-->
+    <td width=220><div id=ppu_memory_info></div>
+    <td rowspan=5 width=264<div id=ppu_memory_info_1></div>
+    <td rowspan=5 width=518><div id=ppu_memory_info_2></div>
+    <td width=264><div id=ppu_memory_info_3></div>
   <tr>
     <th>Mapper
+    <th>OAM memory
+    <th>Screen
   <tr>
     <td><div id=mapper_info></div>
+    <td rowspan=3><div id=oam_info></div>
+    <td rowspan=3><div id=screen_info></div>
   <tr>
     <th>CPU registers / flags
   <tr>

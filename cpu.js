@@ -422,6 +422,7 @@ CPU.init = function(){
     <tr><td>NMI vector<td>$${tools.format4(CPU.nmi_vector)}
     <tr><td>Reset vector<td>$${tools.format4(CPU.reset_vector)}
     <tr><td>IRQ/BRK vector<td>$${tools.format4(CPU.irq_brk_vector)}
+    <tr><td colspan=2>(Mapper registers)
   </table>`;
   
   // Flags
