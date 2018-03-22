@@ -12,7 +12,7 @@ NES ROM disassembler:
 -->
 
 - NES emulator & debugger: (wip)
-https://xem.github.io/nes/disassembler.html
+https://xem.github.io/nes
 
 ---
 
