@@ -177,23 +177,20 @@ gamepak.parse_rom = function(file, filename){
       gamepak.TV_system = "PAL + NTSC";
     }
 
-    
-    gamepak_info.innerHTML = 
-    `<table border>
-      <tr><td colspan=2>File: ${filename}
-      <tr><td>Format<td>iNES ${gamepak.iNES}.0
-      <tr><td>TV standard<td>${gamepak.TV_system}
-      <tr><td>Mapper<td>${gamepak.mapper}${gamepak.submapper ? "-" + gamepak.submapper : ""}
-      <tr><td>PRG-ROM<td>${gamepak.PRG_ROM_banks} * 16KB
-      <tr><td>CHR-ROM<td>${gamepak.CHR_ROM_banks} * 8KB
-      <tr><td>PRG-RAM<td>${gamepak.PRG_RAM_bytes_not_battery_backed / 1024}KB + ${gamepak.PRG_RAM_bytes_battery_backed / 1024}KB
-      <tr><td>CHR-RAM<td>${gamepak.CHR_RAM_bytes_not_battery_backed / 1024}KB + ${gamepak.CHR_RAM_bytes_battery_backed / 1024}KB
-      <tr><td>VRAM<td>${gamepak.mirroring == 0 ? "0KB" : gamepak.mirroring == 1 ? "0KB" : "2KB"}
-      <tr><td>Mirroring<td>${gamepak.mirroring == 0 ? "Horizontal" : gamepak.mirroring == 1 ? "Vertical" : "No (4-screen)"}
-      <tr><td>Extra ROM banks<td>${gamepak.extra_ROM_banks ? (gamepak.extra_ROM_banks + " * 8KB") : 0}
-      <tr><td>Trainer<td>${gamepak.trainer ? "512B" : "no"}
-      <tr><td>Arcade<td>${gamepak.Vs ? "Vs." : gamepak.PC10 ? "PC-10" : "no"}
-    </table>`;
+    // UI
+    filename_info.innerHTML = filename;
+    format_info.innerHTML = gamepak.iNES;
+    tv_standard_info.innerHTML = gamepak.TV_system;
+    mapper_info.innerHTML = gamepak.mapper + (gamepak.submapper ? "-" + gamepak.submapper : "");
+    prg_rom_banks_info.innerHTML = gamepak.PRG_ROM_banks + " * 16KB";
+    chr_rom_banks_info.innerHTML = gamepak.CHR_ROM_banks + " * 8KB";
+    prg_ram_banks_info.innerHTML = (gamepak.PRG_RAM_bytes_not_battery_backed / 1024) + "KB + " + (gamepak.PRG_RAM_bytes_battery_backed / 1024) + "KB";
+    chr_ram_banks_info.innerHTML = (gamepak.CHR_RAM_bytes_not_battery_backed / 1024) + "KB + " + (gamepak.CHR_RAM_bytes_battery_backed / 1024) + "KB";
+    vram_banks_info.innerHTML = gamepak.mirroring == 0 ? "0KB" : gamepak.mirroring == 1 ? "0KB" : "2KB";
+    mirroring_info.innerHTML = gamepak.mirroring == 0 ? "Horizontal" : gamepak.mirroring == 1 ? "Vertical" : "4-screen";
+    extra_rom_banks_info.innerHTML = gamepak.extra_ROM_banks ? (gamepak.extra_ROM_banks + " * 8KB") : 0;
+    trainer_bank_info.innerHTML = gamepak.trainer ? "512B" : "No";
+    arcade_info.innerHTML = gamepak.Vs ? "Vs." : gamepak.PC10 ? "PC-10" : "No";
     
     var pointer = 16;
     

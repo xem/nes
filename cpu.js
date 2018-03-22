@@ -294,7 +294,7 @@ CPU.init = function(){
     CPU.reset_vector = (CPU.memory[0xFFFD] << 8) + CPU.memory[0xFFFC];
     
     // IRQ/BRK vector ($FFFE-$FFFF, big-endian)
-    CPU.irq_brk_vector = (CPU.memory[0xFFFF] << 8) + CPU.memory[0xFFFE];
+    CPU.irq_vector = (CPU.memory[0xFFFF] << 8) + CPU.memory[0xFFFE];
     
   // Registers:
   
@@ -339,47 +339,33 @@ CPU.init = function(){
     
   // UI
   
-  // Table
   // TODO: update PRG-ROM bank numbers on bankswitch
-  cpu_memory_info.innerHTML = 
-  `<table border>
-    <tr><td>Internal RAM / stack
-    <tr><td><div id=internal_ram_info class=minilist>
-    <tr><td>I/O
-    <tr><td><div id=io_info class=minilist></div>
-    <tr><td>PRG-RAM
-    <tr><td><div id=prg_ram_info class=minilist></div></div>
-    <tr><td>PRG-ROM low page (bank 0)
-    <tr><td><div id=prg_rom_low_page_info class=list></div>
-    <tr><td>PRG-ROM high page (bank 1)
-    <tr><td><div id=prg_rom_high_page_info class=list></div>
-  </table>`;
   
   // Internal RAM
   var html = "";
   for(i = 0; i < 0x800; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : 00</div>`;
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
   internal_ram_info.innerHTML = html;
   
   // PPU IO
   var html = "";
   for(i = 0x2000; i < 0x2008; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : 00</div>`;
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
   io_info.innerHTML = html;
   
   // APU I/O
   var html = "";
   for(i = 0x4000; i < 0x4018; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : 00</div>`;
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
   io_info.innerHTML = html;
   
   // PRG-RAM
   var html = "";
   for(i = 0x6000; i < 0x8000; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : 00</div>`;
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
   prg_ram_info.innerHTML = html;
 
@@ -389,14 +375,14 @@ CPU.init = function(){
   var asm = "";
   var formatted_asm = "";
   for(i = 0x8000; i < 0xC000; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])}</div>`;
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
   }
   prg_rom_low_page_info.innerHTML = html;
   
   // PRG-ROM high page
   var html = "";
   for(i = 0xC000; i <= 0xFFFF; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)} : ${tools.format2(CPU.memory[i])}</div>`;
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
   }
   prg_rom_high_page_info.innerHTML = html;
   
@@ -415,37 +401,26 @@ CPU.init = function(){
   }
   
   
+  // UI
+  nmi_vector_info.innerHTML = "$" + tools.format4(CPU.nmi_vector);
+  reset_vector_info.innerHTML = "$" + tools.format4(CPU.reset_vector);
+  irq_vectort_info.innerHTML = "$" + tools.format4(CPU.irq_vector);
+
+  a_info.innerHTML = tools.format2(CPU.A);
+  x_info.innerHTML = tools.format2(CPU.X);
+  y_info.innerHTML = tools.format2(CPU.Y);
+  pc_info.innerHTML = tools.format4(CPU.PC);
+  s_info.innerHTML = tools.format2(CPU.S);
+  p_info.innerHTML = tools.format2(CPU.P)
   
-  // Mapper
-  mapper_info.innerHTML =
-  `<table border>
-    <tr><td>NMI vector<td>$${tools.format4(CPU.nmi_vector)}
-    <tr><td>Reset vector<td>$${tools.format4(CPU.reset_vector)}
-    <tr><td>IRQ/BRK vector<td>$${tools.format4(CPU.irq_brk_vector)}
-    <tr><td colspan=2>(Mapper registers)
-  </table>`;
-  
-  // Flags
-  cpu_registers_flags_info.innerHTML =
-  `<table border style="width:100px;float:left;margin:0 10px 0 0">
-    <tr><td width=40>A<td width=50><pre>${tools.format2(CPU.A)}</pre>
-    <tr><td>X<td><pre>${tools.format2(CPU.X)}</pre>
-    <tr><td>Y<td><pre>${tools.format2(CPU.Y)}</pre>
-    <tr style=background:#def><td>PC<td><pre onclick='tools.focus("cpu_byte_" + CPU.PC)'>${tools.format4(CPU.PC)}</pre>
-    <tr style=background:#fed><td>S<td><pre onclick='tools.focus("cpu_byte_" + CPU.S)'>${tools.format2(CPU.S)}</pre>
-    <tr><td>P<td><pre>${tools.format2(CPU.P)}</pre>
-  </table>
-  
-  <table border style="width:70px">
-    <tr><td>C<td><pre>${CPU.C}</pre>
-    <tr><td>Z<td><pre>${CPU.Z}</pre>
-    <tr><td>I<td><pre>${CPU.I}</pre>
-    <tr><td>D<td><pre>${CPU.D}</pre>
-    <tr><td>B<td><pre>${CPU.B}</pre>
-    <tr><td>V<td><pre>${CPU.V}</pre>
-    <tr><td>N<td><pre>${CPU.N}</pre>
-  </table>`;
-  
+  c_info.innerHTML = CPU.C;
+  z_info.innerHTML = CPU.Z;
+  i_info.innerHTML = CPU.I;
+  d_info.innerHTML = CPU.D;
+  b_info.innerHTML = CPU.B;
+  v_info.innerHTML = CPU.V;
+  n_info.innerHTML = CPU.N;
+
   // Focus on stack pointer in internal RAM
   tools.focus("cpu_byte_" + CPU.S);
   
