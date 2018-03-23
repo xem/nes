@@ -12,9 +12,9 @@ table table { width: 100%; }
 table table td { padding: 2px; }
 pre { margin: 0; font-family: courier, monospace; }
 button { padding: 0 7px }
-.list { height: 137px; overflow-y: scroll; font-family: courier, monospace; }
-.minilist { height: 69px; overflow-y: scroll; font-family: courier, monospace; }
-.maxilist { height: 280px; overflow-y: scroll; font-family: courier, monospace; }
+.list { height: 138px; overflow: hidden; font-family: courier, monospace; }
+.minilist { height: 69px; overflow: hidden; font-family: courier, monospace; }
+.maxilist { height: 280px; overflow: hidden; font-family: courier, monospace; }
 #prg_rom_low_page_info .focus { background: #def; }
 #prg_rom_high_page_info .focus { background: #def; }
 #internal_ram_info .focus { background: #fed; }
@@ -22,12 +22,12 @@ button { padding: 0 7px }
 
 <input type=file id=browse name=browse hidden>
 
-<table border style="min-width:1191px">
+<table border style="min-width:1190px;max-width:1190px;">
   <tr>
     <th width=160>Game Pak <label for=browse onclick=browse.click()><button>browse</button></label>
     <th width=210>CPU memory
     <th colspan=3>PPU memory
-    <th>Screen
+    <th>Screen (frame 0000, dot [000,000])
   <tr>
     <td rowspan=3>
       <div>
@@ -85,12 +85,12 @@ button { padding: 0 7px }
           <tr><td><div id=palettes_info class=minilist></div></div>
         </table>
       </div>
-    <td rowspan=5 width=72>
+    <td rowspan=5 width=74>
       <div>
         <table border>
-          <tr><td>CHR-ROM low page
+          <tr><td>CHR-ROM low page<br>(bank 0)
           <tr><td><canvas id=chr_rom_tiles_page_0 width=64 height=256>
-          <tr><td>CHR-ROM high page
+          <tr><td>high page<br>(bank 0)
           <tr><td><canvas id=chr_rom_tiles_page_1 width=64 height=256>
         </table>
       </div>
@@ -98,7 +98,7 @@ button { padding: 0 7px }
       <div>
         <table border>
           <tr><td colspan=2>Name tables
-          <tr><td><canvas id=nametables width=512 height=480 style="width:256px;height:240px">
+          <tr><td colspan=2><canvas id=nametables width=512 height=480 style="width:256px;height:240px">
           <tr><td colspan=2>Attributes tables
           <tr><td id=attributes_info_0 style="text-align:center"><br><br><br><br><br><br><br><br><td id=attributes_info_1 style="text-align:center">
           <tr><td id=attributes_info_2 style="text-align:center"><br><br><br><br><br><br><br><br><td id=attributes_info_3 style="text-align:center">

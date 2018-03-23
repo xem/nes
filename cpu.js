@@ -343,51 +343,83 @@ CPU.init = function(){
   
   // Internal RAM
   var html = "";
-  for(i = 0; i < 0x800; i++){
+  for(i = CPU.S - 1; i < CPU.S + 4; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
   internal_ram_info.innerHTML = html;
   
-  // PPU IO
+  // IO
   var html = "";
+  for(i = 0x2000; i < 0x2005; i++){
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
+  }
+  /*
   for(i = 0x2000; i < 0x2008; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
-  io_info.innerHTML = html;
-  
-  // APU I/O
-  var html = "";
   for(i = 0x4000; i < 0x4018; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
+  */
   io_info.innerHTML = html;
   
   // PRG-RAM
   var html = "";
+  for(i = 0x6000; i < 0x6005; i++){
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
+  }
+  /*
   for(i = 0x6000; i < 0x8000; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
+  */
+  
   prg_ram_info.innerHTML = html;
 
   // PRG-ROM low page
   var html = "";
-  
   var asm = "";
   var formatted_asm = "";
+  if(CPU.PC > 0xC000){
+    for(i = 0x8000; i < 0x800A; i++){
+      html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
+    }
+  }
+  else {
+    for(i = CPU.PC - 1; i < CPU.PC + 9; i++){
+      html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
+    }
+  }
+  
+  /*
   for(i = 0x8000; i < 0xC000; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
   }
+  */
+  
   prg_rom_low_page_info.innerHTML = html;
   
   // PRG-ROM high page
-  var html = "";
+  if(CPU.PC < 0xC000){
+    for(i = 0xC000; i < 0xC00A; i++){
+      html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
+    }
+  }
+  else {
+    for(i = CPU.PC - 1; i < CPU.PC + 8; i++){
+      html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
+    }
+  }
+  /*
   for(i = 0xC000; i <= 0xFFFF; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.memory[i])}</div>`;
   }
+  */
   prg_rom_high_page_info.innerHTML = html;
   
   // Format ASM from reset vector to $FFFF
   var bytes_read = 0;
+  /*
   for(i = CPU.reset_vector; i < 0xFFFF; i++){
     if(bytes_read == 0){
       formatted_asm = tools.format_asm(i);
@@ -399,6 +431,12 @@ CPU.init = function(){
       bytes_read--;
     }
   }
+  */
+  
+  var formatted_asm = tools.format_asm(CPU.PC);
+  var asm = formatted_asm[0];
+  var bytes_read = formatted_asm[1];
+  window[`cpu_byte_${CPU.PC}`].innerHTML += ` ; ${asm}`;
   
   
   // UI

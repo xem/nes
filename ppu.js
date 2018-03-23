@@ -4,8 +4,8 @@ PPU = {};
 // Init CPU memory, flags, UI
 PPU.init = function(){
   
-  // PPU memory map (64KB) + 1 view (unsigned int)
-  PPU.memory_buffer = new ArrayBuffer(64 * 1024);
+  // PPU memory map (16KB) + 1 view (unsigned int)
+  PPU.memory_buffer = new ArrayBuffer(16 * 1024);
   PPU.memory = new Uint8Array(CPU.memory_buffer);
 
   // Place the first 8KB CHR-ROM bank in memory (it uses 2 4KB banks: $0000-$0FFF + $1000-$1FFF)
@@ -22,30 +22,50 @@ PPU.init = function(){
   
   // Pattern tables
   var html = "";
+  /*
   for(i = 0x0000; i < 0x2000; i++){
+    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
+  }
+  */
+  for(i = 0x0000; i < 0x0005; i++){
     html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
   pattern_tables_info.innerHTML = html;
   
   // Name tables + attributes tables
   var html = "";
+  /*
   for(i = 0x2000; i < 0x3000; i++){
+    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
+  }
+  */
+  for(i = 0x2000; i < 0x2005; i++){
     html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
   nametables_info.innerHTML = html;
 
   // Palettes
   var html = "";
+  for(i = 0x3f00; i < 0x3f05; i++){
+    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
+  }
+  /*
   for(i = 0x3f00; i < 0x3f20; i++){
     html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
+  */
   palettes_info.innerHTML = html;
   
   // OAM
   var html = "";
+  for(i = 0; i < 0x50; i += 4){
+    html += `<div id=oam_${i}>${tools.format2(i)}: 00 00 00 00</div>`;
+  }
+  /*
   for(i = 0; i < 0xff; i += 4){
     html += `<div id=oam_${i}>${tools.format2(i)}: 00 00 00 00</div>`;
   }
+  */
   oam_memory_info.innerHTML = html;
   
   // Attributes tables
@@ -115,6 +135,7 @@ PPU.draw_tiles = function(page){
 PPU.draw_nametables = function(){
   var canvas = nametables;
   var ctx = canvas.getContext("2d");
+  ctx.fillStyle = "black";
   ctx.fillRect(0, 0, 512, 480);
   ctx.fillStyle = "pink";
   ctx.fillRect(0, 240, 512, 1);
