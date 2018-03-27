@@ -1,5 +1,44 @@
-// Global
-gamepak = {};
+// Namespace
+
+gamepak = {
+  
+  // Settings
+  TV_system: 0,
+  mapper: 0,
+  submapper: 0,
+  trainer_bank: 0,
+  PRG_ROM_banks: 0,
+  PRG_RAM_banks: 0,
+  CHR_ROM_banks: 0,
+  CHR_RAM_banks: 0,
+  extra_ROM_banks: 0,
+  mirroring: 0,
+  iNES: 0,
+  Vs: 0,
+  PC10: 0,
+  PRG_RAM_bytes_battery_backed: 0,
+  CHR_RAM_bytes_battery_backed: 0,
+  PRG_RAM_bytes_not_battery_backed: 0,
+  CHR_RAM_bytes_not_battery_backed: 0,
+  
+  // ROM banks
+  trainer_buffer: null,
+  trainer_signed: null,
+  trainer: null,
+  
+  PRG_ROM_buffer: [],
+  PRG_ROM_signed: [],
+  PRG_ROM: [],
+  
+  CHR_ROM_buffer: [],
+  CHR_ROM: [],
+  
+  extra_ROM_buffer: [],
+  extra_ROM_signed: [],
+  extra_ROM: [],
+};
+
+// Methods
 
 // Parse a ROM picked with the file input
 gamepak.parse_rom = function(file, filename){
@@ -7,7 +46,7 @@ gamepak.parse_rom = function(file, filename){
   // Transform the file in an array of bytes
   var bytes = new Uint8Array(file.result);
   
-  // Parse iNES header (starts with bytes 4E 45 53 1A, file extension is generally ".nes")
+  // Parse 16-byte iNES header (starts with bytes 4E 45 53 1A, file extension is generally ".nes")
   if(bytes[0] == 0x4E && bytes[1] == 0x45 && bytes[2] == 0x53 && bytes[3] == 0x1A){
   
     // Byte 4: Number of 16KB PRG-ROM banks 
@@ -26,7 +65,7 @@ gamepak.parse_rom = function(file, filename){
       gamepak.PRG_RAM_banks = (bytes[6] & 0b10) >> 1;
       
       // Bit 2: Cartridge contains a 512B trainer (CPU $7000-$71FF)
-      gamepak.trainer = (bytes[6] & 0b100) >> 2;
+      gamepak.trainer_bank = (bytes[6] & 0b100) >> 2;
       
       // Bit 3: Ignore mirroring in bit 0, use 4-screen nametable instead, the cartridge provides 2KB of VRAM.
       if((bytes[6] & 0b1000) >> 3){
@@ -179,7 +218,7 @@ gamepak.parse_rom = function(file, filename){
 
     // UI
     filename_info.innerHTML = filename;
-    format_info.innerHTML = gamepak.iNES;
+    format_info.innerHTML = "iNES" + gamepak.iNES + ".0" ;
     tv_standard_info.innerHTML = gamepak.TV_system;
     mapper_info.innerHTML = gamepak.mapper + (gamepak.submapper ? "-" + gamepak.submapper : "");
     prg_rom_banks_info.innerHTML = gamepak.PRG_ROM_banks + " * 16KB";
@@ -189,14 +228,17 @@ gamepak.parse_rom = function(file, filename){
     vram_banks_info.innerHTML = gamepak.mirroring == 0 ? "0KB" : gamepak.mirroring == 1 ? "0KB" : "2KB";
     mirroring_info.innerHTML = gamepak.mirroring == 0 ? "Horizontal" : gamepak.mirroring == 1 ? "Vertical" : "4-screen";
     extra_rom_banks_info.innerHTML = gamepak.extra_ROM_banks ? (gamepak.extra_ROM_banks + " * 8KB") : 0;
-    trainer_bank_info.innerHTML = gamepak.trainer ? "512B" : "No";
+    trainer_bank_info.innerHTML = gamepak.trainer_bank ? "512B" : "No";
     arcade_info.innerHTML = gamepak.Vs ? "Vs." : gamepak.PC10 ? "PC-10" : "No";
     
     var pointer = 16;
     
-    // Extract 512B trainer (if any)
-    if(gamepak.trainer){
-      gamepak.trainer = [];
+    // Extract 512B trainer (if any), and create two views (signed / unsigned bytes)
+    if(gamepak.trainer_bank){
+      gamepak.trainer_buffer = new ArrayBuffer(512);
+      gamepak.trainer_signed = new Int8Array(gamepak.trainer_buffer);
+      gamepak.trainer = new Uint8Array(gamepak.trainer_buffer);
+      
       for(var i = 0; i < 512; i++){
         gamepak.trainer[i] = bytes[pointer];
         pointer++;
@@ -206,30 +248,32 @@ gamepak.parse_rom = function(file, filename){
       gamepak.trainer = [];
     }
     
-    // Extract 16KB PRG-ROM banks
-    gamepak.PRG_ROM = [];
+    // Extract 16KB PRG-ROM banks, and create two views for each (signed / unsigned bytes)
     for(i = 0; i < gamepak.PRG_ROM_banks; i++){
-      gamepak.PRG_ROM[i] = [];
+      gamepak.PRG_ROM_buffer[i] = new ArrayBuffer(16 * 1024);
+      gamepak.PRG_ROM_signed[i] = new Int8Array(gamepak.PRG_ROM_buffer[i]);
+      gamepak.PRG_ROM[i] = new Uint8Array(gamepak.PRG_ROM_buffer[i]);
       for(var j = 0; j < 16 * 1024; j++){
         gamepak.PRG_ROM[i][j] = bytes[pointer];
         pointer++;
       }
     }
     
-    // Extract 8KB CHR-ROM banks
-    gamepak.CHR_ROM = [];
+    // Extract 8KB CHR-ROM banks, and create one view for each (unsigned bytes)
     for(i = 0; i < gamepak.CHR_ROM_banks; i++){
-      gamepak.CHR_ROM[i] = [];
+      gamepak.CHR_ROM_buffer[i] = new ArrayBuffer(8 * 1024);
+      gamepak.CHR_ROM[i] = new Uint8Array(gamepak.CHR_ROM_buffer[i]);
       for(var j = 0; j < 8 * 1024; j++){
         gamepak.CHR_ROM[i][j] = bytes[pointer];
         pointer++;
       }
     }
     
-    // Extract extra ROM banks (8KB seemingly)
-    gamepak.extra_ROM = [];
+    // Extract extra ROM banks (8KB), and create two views for each (signed / unsigned bytes)
     for(i = 0; i < gamepak.extra_ROM_banks; i++){
-      gamepak.CHR_ROM[i] = [];
+      gamepak.extra_ROM_buffer[i] = new ArrayBuffer(8 * 1024);
+      gamepak.extra_ROM_signed[i] = new Int8Array(gamepak.extra_ROM_buffer[i]);
+      gamepak.extra_ROM[i] = new Uint8Array(gamepak.extra_ROM_buffer[i]);
       for(var j = 0; j < 8 * 1024; j++){
         gamepak.extra_ROM[i][j] = bytes[pointer];
         pointer++;
@@ -237,7 +281,7 @@ gamepak.parse_rom = function(file, filename){
     }
   }
   
-  // Other formats (currently not supported)
+  // Other ROM file formats (currently not supported)
   else {
     gamepak_info.innerHTML = "Unsupported ROM format";
   }

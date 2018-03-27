@@ -2,16 +2,16 @@
 <title>NES emulator</title>
 
 <style>
-body { font: 11px arial }
-* { font: inherit }
-table { border-collapse: collapse; table-layout: fixed; }
+* { margin: 0; padding: 0; border: 0; font: inherit }
+body { font: 11px/14px arial; padding: 10px; }
+table, th, td { border-collapse: collapse; table-layout: fixed; border: 1px solid #000; }
 td { vertical-align: top; height: 0; }
-th { font-weight: bold; height: 0; background: #eee; }
+th { font-weight: bold; height: 20px; background: #eee; }
 td { padding: 10px; }
 table table { width: 100%; }
 table table td { padding: 2px; }
 pre { margin: 0; font-family: courier, monospace; }
-button { padding: 0 7px }
+button { padding: 1px 9px; border: 1px solid #888; background: #ddd }
 .list { height: 138px; overflow: hidden; font-family: courier, monospace; }
 .minilist { height: 69px; overflow: hidden; font-family: courier, monospace; }
 .maxilist { height: 280px; overflow: hidden; font-family: courier, monospace; }
@@ -85,7 +85,7 @@ button { padding: 0 7px }
           <tr><td><div id=palettes_info class=minilist></div></div>
         </table>
       </div>
-    <td rowspan=5 width=74>
+    <td rowspan=5 width=70>
       <div>
         <table border>
           <tr><td>CHR-ROM low page<br>(bank 0)
@@ -94,7 +94,7 @@ button { padding: 0 7px }
           <tr><td><canvas id=chr_rom_tiles_page_1 width=64 height=256>
         </table>
       </div>
-    <td rowspan=5 width=264>
+    <td rowspan=5 width=260>
       <div>
         <table border>
           <tr><td colspan=2>Name tables
@@ -110,7 +110,7 @@ button { padding: 0 7px }
           <tr><td colspan=2><canvas id=sprite_palette width=256 height=16>
         </table>
       </div>
-    <td width=264>
+    <td width=260>
       <div>
         <table border>
           <tr><td><canvas id=screen_canvas width=256 height=242></canvas>

@@ -10,15 +10,17 @@ I. Physical cartridge (Game PAK)
 Cartridges always contain at least one PRG-ROM bank and one CHR bank (ROM or RAM).
 Some games contain extra chips to extend the NES's RAM or to save the player's progress.
 
-+---------+--------+--------+-----------------------------------------------------+
-| Banks   | Size   | Number | Use                                                 |
-+---------+--------+--------+-----------------------------------------------------+
-| PRG-ROM | 16KB   | 1-4096 | Game code, sometimes compressed graphics (R)        |
-| PRG-RAM | 2-64KB | 0-1    | Persistent save slot (battery-backed) (R/W)         |
-| CHR-ROM | 8KB    | 0-4096 | Game graphics, also called VROM (R)                 |
-| CHR-RAM | 8KB    | 0-1    | Game graphics decompressed at runtime (R/W)         |
-| VRAM    | 2KB    | 0-1    | Adds 2 screens of nametable memory to the PPU (R/W) |
-+---------+--------+--------+-----------------------------------------------------+
++---------+--------+--------+----------------------------------------------------+
+| Banks   | Size   | Number | Use                                                |
++---------+--------+--------+----------------------------------------------------+
+| PRG-ROM | 16KB   | 1-4096 | Game code, sometimes compressed graphics (R)       |
+| PRG-RAM | 2-64KB | 0-1    | Persistent save slot (battery-backed) (R/W)        |
+| CHR-ROM | 8KB    | 0-4096 | Game graphics, also called VROM (R)                |
+| CHR-RAM | 8KB    | 0-1    | Game graphics decompressed here at runtime (R/W)   |
+| VRAM    | 2KB    | 0-1    | Add 2 screens of nametable memory to the PPU (R/W) |
+| trainer | 512B   | 0-1    | Program executed before the game starts (R)        |
+| extra   | 8KB    | 0-3    | Extra ROM banks / hint screen data (R)             |
++---------+--------+--------+----------------------------------------------------+
 
 The NES CPU and PPU can only address 32KB of PRG-ROM and 8KB of CHR-ROM at once.
 A lot of games can fit in this size (ex: Super Mario Bros - 40KB).
