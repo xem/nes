@@ -6,7 +6,7 @@ tools.format2 = function(n){
   if(typeof n !== "undefined"){
     return ("0" + n.toString(16).toUpperCase()).slice(-2);
   }
-  return 0;
+  return "error";
 }
 
 // Format a number on 4 hex numbers (2B)
@@ -14,20 +14,23 @@ tools.format4 = function(n){
   if(typeof n !== "undefined"){
     return ("000" + n.toString(16).toUpperCase()).slice(-4);
   }
-  return 0;
+  return "error";
 }
 
 // Focus a list item
 tools.focus = function(id){
-  var element = document.getElementById(id);
+  var element = window[id];
   if(element){
     var parent = element.parentNode;
+    var focused = parent.querySelector(".focus");
+    if(focused){
+      focused.classList.remove("focus");
+    }
     element.classList.add("focus");
-    parent.scrollTop = element.offsetTop - 14;
   }
 }
 
-// Format an ASM instruction according to position in memory and addressing mode
+// Format an ASM instruction with the right addressing mode
 // @param pointer in CPU memory
 // @return [formatted_asm, extra_bytes_read];
 tools.format_asm = function(pointer){

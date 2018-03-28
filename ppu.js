@@ -1,71 +1,62 @@
 // Global
-PPU = {};
+PPU = {
+  
+  // Memory
+  memory_buffer: null,
+  memory: null,
+  oam_buffer: null,
+  oam: null,
+  
+  // Cycles
+  cycles: 0,
+  
+};
 
 // Init CPU memory, flags, UI
 PPU.init = function(){
   
-  // PPU memory map (16KB) + 1 view (unsigned int)
+  // PPU memory + 1 view (unsigned int)
+  // (Only the first 16KB of the memory is initialized, the rest is mirrored)
   PPU.memory_buffer = new ArrayBuffer(16 * 1024);
-  PPU.memory = new Uint8Array(CPU.memory_buffer);
-
-  // Place the first 8KB CHR-ROM bank in memory (it uses 2 4KB banks: $0000-$0FFF + $1000-$1FFF)
-  // TODO: enhance this after adding more mappers support.
-  if(gamepak.CHR_ROM_banks > 0){
-    for(i = 0; i < 8 * 1024; i++){
-      PPU.memory[0x0000 + i] = gamepak.CHR_ROM[0][i];
-    }
-  }
+  PPU.memory = new Uint8Array(PPU.memory_buffer);
+  
+  // OAM memory (256B) + 1 view (unsigned int)
+  PPU.oam_buffer = new ArrayBuffer(256);
+  PPU.oam = new Uint8Array(PPU.oam_buffer);
     
   // UI
-  
   // TODO: update PRG-ROM bank numbers on bankswitch
   
   // Pattern tables
   var html = "";
-  /*
-  for(i = 0x0000; i < 0x2000; i++){
-    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  */
+
   for(i = 0x0000; i < 0x0005; i++){
-    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
+    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: ${tools.format2(PPU.read(i))}</div>`;
   }
   pattern_tables_info.innerHTML = html;
   
   // Name tables + attributes tables
   var html = "";
-  /*
-  for(i = 0x2000; i < 0x3000; i++){
-    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  */
+
   for(i = 0x2000; i < 0x2005; i++){
-    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
+    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: ${tools.format2(PPU.read(i))}</div>`;
   }
   nametables_info.innerHTML = html;
 
   // Palettes
   var html = "";
   for(i = 0x3f00; i < 0x3f05; i++){
-    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
+    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: ${tools.format2(PPU.read(i))}</div>`;
   }
-  /*
-  for(i = 0x3f00; i < 0x3f20; i++){
-    html += `<div id=ppu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  */
+
   palettes_info.innerHTML = html;
   
   // OAM
   var html = "";
   for(i = 0; i < 0x50; i += 4){
-    html += `<div id=oam_${i}>${tools.format2(i)}: 00 00 00 00</div>`;
+    html += `<div id=oam_${i}>${tools.format2(i)}: ${tools.format2(PPU.oam[i])} ${tools.format2(PPU.oam[i + 1])} ${tools.format2(PPU.oam[i + 2])} ${tools.format2(PPU.oam[i + 3])}</div>`;
   }
-  /*
-  for(i = 0; i < 0xff; i += 4){
-    html += `<div id=oam_${i}>${tools.format2(i)}: 00 00 00 00</div>`;
-  }
-  */
+
   oam_memory_info.innerHTML = html;
   
   // Attributes tables
@@ -80,7 +71,6 @@ PPU.init = function(){
   attributes_info_1.innerHTML = html;
   attributes_info_2.innerHTML = html;
   attributes_info_3.innerHTML = html;
-  
   
   // Visual debug
   PPU.draw_tiles(0)
@@ -107,8 +97,8 @@ PPU.draw_tiles = function(page){
   var tile = 0;
   for(var i = page * 4 * 1024; i < (page + 1) * 4 * 1024; i += 16){
     for(k = 0; k < 8; k++){
-      var b = PPU.memory[i + k];
-      var bb = PPU.memory[i + 8 + k];
+      var b = PPU.read(i + k);
+      var bb = PPU.read(i + 8 + k);
       for(j = 0; j < 8; j++){
         
         // binary addition
@@ -123,13 +113,6 @@ PPU.draw_tiles = function(page){
     }
     tile++;
   }
-  
-  /*// Add pink lines between tiles
-  for(i = 0; i < 32; i++){
-    ctx.fillStyle = "pink";
-    ctx.fillRect(i * 16 - 1, 0, 1, 512);
-    ctx.fillRect(0, i * 16 - 1, 256, 1);
-  }*/
 }
 
 PPU.draw_nametables = function(){
@@ -155,4 +138,63 @@ PPU.draw_screen = function(){
   var canvas = screen_canvas;
   var ctx = canvas.getContext("2d");
   ctx.fillRect(0, 0, 256, 242);
+}
+
+// Read/write a byte in PPU memory
+PPU.read_write = function(address, signed, value){
+  
+  // Write
+  var write = typeof value !== "undefined";
+  
+  // $4000-$FFFF: mirrors of $0000-$3FFF
+  if(address > 0x3FFF){
+    address %= 0x4000;
+  }
+  
+  // $3F20-$3FFF: mirrors of $3F00-$3F1F
+  if(address >= 0x3F20 && address <= 0x3FFF){
+    address = (address - 0x3F20) % 0x20;
+  }
+  
+  // $3000-$3EFF: mirror of $2000-$2EFF
+  if(address >= 0x3000 && address <= 0x3EFF){
+    address = address - 0x3000 + 0x2000;
+  }
+  
+  // Write
+  if(write && address >= 0x2000){
+    PPU.memory[address] = value;
+  }
+  
+  // Read
+  else if(!write){
+    
+    // Read from CHR-ROM low bank
+    // TODO: bankswitch
+    // Default: bank 0 (first 4KB)
+    if(address < 0x1000){
+      return gamepak.CHR_ROM[0][address];
+    }
+    
+    // Read from CHR-ROM high bank
+    // TODO: bankswitch
+    // Default: (bank 0 (last 4KB)
+    else if(address < 0x2000){
+      return gamepak.CHR_ROM[0][address];
+    }
+    
+    // Read from PPU memory
+    return PPU.memory[address];
+  }
+}
+
+// Read a byte from PPU memory
+PPU.read = function(address, signed = 0){
+  return PPU.read_write(address, signed);
+}
+
+// Write a byte in PPU memory
+// If the byte is written on a read-only address, the memory isn't changed.
+PPU.write = function(address, value){
+  PPU.read_write(address, 0, value);
 }

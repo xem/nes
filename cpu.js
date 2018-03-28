@@ -48,6 +48,9 @@ CPU = {
   V: 0,
   N: 0,
   
+  // Cycles
+  cycles: 0,
+  
 };
 
 // Methods
@@ -55,27 +58,11 @@ CPU = {
 // Init CPU memory, flags, UI
 CPU.init = function(){
   
-  // CPU memory map (64KB) + 2 views (signed int / unsigned int)
-  CPU.memory_buffer = new ArrayBuffer(64 * 1024);
+  // CPU memory + 2 views (signed int / unsigned int)
+  // (Only the first 32KB of the memory is initialized, the rest will be accessible through the PRG-ROM banks)
+  CPU.memory_buffer = new ArrayBuffer(32 * 1024);
   CPU.memory_signed = new Int8Array(CPU.memory_buffer);
   CPU.memory = new Uint8Array(CPU.memory_buffer);
-  
-/*  // Place trainer in memory ($7000-$71FF), if any
-  for(i = 0; i < gamepak.trainer.length; i++){
-    CPU.memory[0x7000 + i] = gamepak.trainer[i];
-  }
-
-  // Place first and last PRG-ROM bank in memory ($8000-$BFFF + $C000-$FFFF)
-  // TODO: enhance this after adding more mappers support.
-  // TODO: mirror bank 2 in bank 1 if bank 1 is filled with 0 (except the last 32B that contain garbage).
-  for(i = 0; i < 16 * 1024; i++){
-    CPU.memory[0x8000 + i] = gamepak.PRG_ROM[0][i];
-  }
-  
-  for(i = 0; i < 16 * 1024; i++){
-    CPU.memory[0xC000 + i] = gamepak.PRG_ROM[gamepak.PRG_ROM_banks - 1][i];
-  }
-*/
 
   // Interrupt vectors:
   
@@ -115,13 +102,15 @@ CPU.init = function(){
     CPU.Z = 0;
     
     // IRQ disable (bit 2)
-    CPU.I = 0;
+    // This bit is set on boot
+    CPU.I = 1;
     
     // Decimal mode (bit 3)
     CPU.D = 0;
     
     // Break Flag (0 = IRQ/NMI, 1 = RESET/BRK/PHP) (bit 5)
-    CPU.B = 0;
+    // This bit is set on boot
+    CPU.B = 1;
     
     // Overflow (bit 6)
     CPU.V = 0;
@@ -145,14 +134,7 @@ CPU.init = function(){
   for(i = 0x2000; i < 0x2005; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
-  /*
-  for(i = 0x2000; i < 0x2008; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  for(i = 0x4000; i < 0x4018; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  */
+
   io_info.innerHTML = html;
   
   // PRG-RAM
@@ -160,11 +142,6 @@ CPU.init = function(){
   for(i = 0x6000; i < 0x6005; i++){
     html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
   }
-  /*
-  for(i = 0x6000; i < 0x8000; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  */
   
   prg_ram_info.innerHTML = html;
 
@@ -242,14 +219,6 @@ CPU.init = function(){
 
   prg_rom_high_page_info.innerHTML = html;
   
-  // Format ASM from reset vector to $FFFF
-  
-  /*
-  for(i = CPU.reset_vector; i < 0xFFFF; i++){
-    
-  }
-  */
-  
   var formatted_asm = tools.format_asm(CPU.PC);
   var asm = formatted_asm[0];
   var bytes_read = formatted_asm[1];
@@ -283,7 +252,7 @@ CPU.init = function(){
   tools.focus("cpu_byte_" + CPU.PC);
 };
 
-// Read/write a byte in memory
+// Read/write a byte in CPU memory
 CPU.read_write = function(address, signed, value){
   
   // Write
@@ -316,28 +285,51 @@ CPU.read_write = function(address, signed, value){
   // Cartridge space
   else {
     
-    // $4020-$5FFF: expansion ROM (TODO) 
+    // $4020-$5FFF: expansion ROM
+    // TODO: bankswitch
+    // Default: bank 0
     if(address < 0x6000){
       
+      // Read-only
+      if(!write){
+        
+        if(signed){
+          return gamepak.extra_ROM_signed[0][address - 0x6000];
+        }
+        else {
+          return gamepak.extra_ROM[0][address - 0x6000];
+        }
+      }
     }
     
-    // $7000-$71FF: trainer (TODO)
+    // $7000-$71FF: trainer
     else if(CPU.trainer_bank && address >= 0x7000 && address < 0x7200){
+      
+      // Read-only
+      if(!write){
+        
+        if(signed){
+          return gamepak.trainer_signed[address - 0x7000];
+        }
+        else {
+          return gamepak.trainer[address - 0x7000];
+        }
+      }
       
     }
     
-    // $6000-$7FFF: PRG-RAM (TODO)
+    // $6000-$7FFF: PRG-RAM
     else if(address < 0x8000){
       
     }
     
-    // $8000-$BFFF: PRG_ROM, low page
+    // $8000-$BFFF: PRG-ROM, low page
     // TODO: bankswitch.
     // Default: bank 0
     
     else if(address < 0xC000){
       
-      // Write (the write is not effective but it is used to control the mapper)
+      // Write (nothing is written in ROM but the mapper is notified)
       if(write){
         Mapper.write(address, value);
       }
@@ -357,13 +349,12 @@ CPU.read_write = function(address, signed, value){
       }
     }
     
-    // $C000-$FFFF: PRG_ROM, high page
+    // $C000-$FFFF: PRG-ROM, high page
     // TODO: bankswitch.
     // Default: bank 1
-    
     else {
       
-      // Write (mapper control)
+      // Write (nothing is written in ROM but the mapper is notified)
       if(write){
         Mapper.write(address, value);
       }
@@ -385,12 +376,42 @@ CPU.read_write = function(address, signed, value){
   }
 }
 
-// Read a byte from memory
+// Read a byte from CPU memory
 CPU.read = function(address, signed = 0){
   return CPU.read_write(address, signed);
 }
 
-// Write a byte in memory
+// Write a byte in CPU memory
+// If the byte is written on a read-only address, the memory isn't changed but the mapper is notified.
 CPU.write = function(address, value){
   CPU.read_write(address, 0, value);
+}
+
+// Execute an opcode
+// Update UI and cycles counters
+CPU.op = function(){
+  
+  var opcode = CPU.read(CPU.PC);
+  var extra_bytes = 0;
+  
+  switch(opcode){
+    
+    // SEI
+    // I = 1
+    // Set interrupt disable flag.
+    case 0x78:
+      CPU.I = 1;
+      CPU.P = CPU.P | 0b100;
+      i_info.innerHTML = CPU.I;
+      p_info.innerHTML = tools.format2(CPU.P);
+      CPU.cycles += 2;
+      extra_bytes = 0;
+      break;
+  }
+  
+  cpu_cycles_info.innerHTML = tools.format4(CPU.cycles);
+  CPU.PC = CPU.PC + extra_bytes + 1;
+  pc_info.innerHTML = tools.format4(CPU.PC);
+  tools.focus("cpu_byte_" + CPU.PC);
+  
 }

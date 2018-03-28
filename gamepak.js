@@ -36,6 +36,10 @@ gamepak = {
   extra_ROM_buffer: [],
   extra_ROM_signed: [],
   extra_ROM: [],
+  
+  // ASM code for each PRG-ROM bank
+  asm: [],
+  
 };
 
 // Methods
@@ -231,6 +235,7 @@ gamepak.parse_rom = function(file, filename){
     trainer_bank_info.innerHTML = gamepak.trainer_bank ? "512B" : "No";
     arcade_info.innerHTML = gamepak.Vs ? "Vs." : gamepak.PC10 ? "PC-10" : "No";
     
+    // Read the file's data
     var pointer = 16;
     
     // Extract 512B trainer (if any), and create two views (signed / unsigned bytes)
@@ -253,6 +258,7 @@ gamepak.parse_rom = function(file, filename){
       gamepak.PRG_ROM_buffer[i] = new ArrayBuffer(16 * 1024);
       gamepak.PRG_ROM_signed[i] = new Int8Array(gamepak.PRG_ROM_buffer[i]);
       gamepak.PRG_ROM[i] = new Uint8Array(gamepak.PRG_ROM_buffer[i]);
+      gamepak.asm[i] = [];
       for(var j = 0; j < 16 * 1024; j++){
         gamepak.PRG_ROM[i][j] = bytes[pointer];
         pointer++;

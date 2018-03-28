@@ -208,7 +208,7 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 
 ---
 
-> CPU Flags:
+> CPU Flags (register P):
 
 +-----+------+---------------------------------------------+
 | Bit | Name | Use                                         |
@@ -525,12 +525,13 @@ PPU:
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $3F20-$3FFF | 224B  | Mirrors of $3F00-$3F1F                                   |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
-| $4000-$FFFF | 48MB  | Mirrors of $0000-$3FFF                                    |
+| $4000-$FFFF | 48MB  | Mirrors of $0000-$3FFF                                   |
 +-------------+-------+----------------------------------------------------------+
 (*) These values are valid for games that have 32KB of PRG-ROM and 8KB of CHR-ROM.
 Games with more than 32KB of PRG-ROM will have their CHR-ROM data stored at a higher address inside the ROM file. 
 Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses (see VI. Mappers).
 The pattern tables contain 8x8px tiles used in the game's background (see nametables) and sprites (see OAM).
+Pattern tables are sometimes called low/high page or left/right page.
 
 OAM:
 
