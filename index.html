@@ -16,6 +16,7 @@ canvas { vertical-align: middle }
 .list { height: 138px; overflow: hidden; font-family: courier, monospace; }
 .minilist { height: 69px; overflow: hidden; font-family: courier, monospace; }
 .maxilist { height: 280px; overflow: hidden; font-family: courier, monospace; }
+#io_info .focus { background: #ddd; }
 #prg_rom_low_page_info .focus { background: #def; }
 #prg_rom_high_page_info .focus { background: #def; }
 #internal_ram_info .focus { background: #fed; }
@@ -23,10 +24,10 @@ canvas { vertical-align: middle }
 
 <input type=file id=browse name=browse hidden>
 
-<table border style="min-width:1190px;max-width:1190px;">
+<table border style="min-width:1200px;max-width:1200px;height:650px;">
   <tr>
     <th width=160>Game Pak <label for=browse onclick=browse.click()><button>browse</button></label>
-    <th width=210>CPU memory
+    <th width=230>CPU memory
     <th colspan=3>PPU memory
     <th>Screen
   <tr>
@@ -57,7 +58,6 @@ canvas { vertical-align: middle }
           <tr><td colspan=2>(Mapper registers)
           <tr><td colspan=2>(Mapper registers)
           <tr><td colspan=2>(Mapper registers)
-          <tr><td colspan=2>(Mapper registers)
         </table>
       </div>
     <td rowspan=5>
@@ -66,7 +66,58 @@ canvas { vertical-align: middle }
           <tr><td>Internal RAM / stack
           <tr><td><div id=internal_ram_info class=minilist>
           <tr><td>I/O
-          <tr><td><div id=io_info class=minilist></div>
+          <tr><td>
+          <div id=io_info class=minilist>
+            2000: 
+            <span id=cpu_byte_8192>00</span>
+            <span id=cpu_byte_8193>00</span>
+            <span id=cpu_byte_8194>00</span>
+            <span id=cpu_byte_8195>00</span>
+            <span id=cpu_byte_8196>00</span>
+            <span id=cpu_byte_8197>00</span>
+            <span id=cpu_byte_8198>00</span>
+            <span id=cpu_byte_8199>00</span>
+            <br>
+            4000: 
+            <span id=cpu_byte_16384>00</span>
+            <span id=cpu_byte_16385>00</span>
+            <span id=cpu_byte_16386>00</span>
+            <span id=cpu_byte_16387>00</span>
+            <span id=cpu_byte_16388>00</span>
+            <span id=cpu_byte_16389>00</span>
+            <span id=cpu_byte_16390>00</span>
+            <span id=cpu_byte_16391>00</span>
+            <br>
+            4008: 
+            <span id=cpu_byte_16392>00</span>
+            <span id=cpu_byte_16393>00</span>
+            <span id=cpu_byte_16394>00</span>
+            <span id=cpu_byte_16395>00</span>
+            <span id=cpu_byte_16396>00</span>
+            <span id=cpu_byte_16397>00</span>
+            <span id=cpu_byte_16398>00</span>
+            <span id=cpu_byte_16399>00</span>
+            <br>
+            4010: 
+            <span id=cpu_byte_16400>00</span>
+            <span id=cpu_byte_16401>00</span>
+            <span id=cpu_byte_16402>00</span>
+            <span id=cpu_byte_16403>00</span>
+            <span id=cpu_byte_16404>00</span>
+            <span id=cpu_byte_16405>00</span>
+            <span id=cpu_byte_16406>00</span>
+            <span id=cpu_byte_16407>00</span>
+            <br>
+            4018: 
+            <span id=cpu_byte_16408>00</span>
+            <span id=cpu_byte_16409>00</span>
+            <span id=cpu_byte_16410>00</span>
+            <span id=cpu_byte_16411>00</span>
+            <span id=cpu_byte_16412>00</span>
+            <span id=cpu_byte_16413>00</span>
+            <span id=cpu_byte_16414>00</span>
+            <span id=cpu_byte_16415>00</span>
+          </div>
           <tr><td>PRG-RAM
           <tr><td><div id=prg_ram_info class=minilist></div></div>
           <tr><td>PRG-ROM low page (bank 0)
@@ -75,7 +126,7 @@ canvas { vertical-align: middle }
           <tr><td><div id=prg_rom_high_page_info class=list></div>
         </table>
       </div>
-    <td width=130>
+    <td width=120>
       <div>
         <table border>
           <tr><td>CHR-ROM
@@ -127,7 +178,7 @@ canvas { vertical-align: middle }
           <button disabled>fullscreen</button>
         </div>
         <div style="margin:2px 0;font-family:monospace">
-          F 0000 CPU <span id=cpu_cycles_info>0000</span> GPU 000000 px 000:000
+          Frame 0000 CPU <span id=cpu_cycles_info>0000</span> GPU 0 px 000:000
         </div>
       </div>
   <tr>

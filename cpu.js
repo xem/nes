@@ -129,14 +129,6 @@ CPU.init = function(){
   }
   internal_ram_info.innerHTML = html;
   
-  // IO
-  var html = "";
-  for(i = 0x2000; i < 0x2005; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-
-  io_info.innerHTML = html;
-  
   // PRG-RAM
   var html = "";
   for(i = 0x6000; i < 0x6005; i++){
@@ -145,7 +137,7 @@ CPU.init = function(){
   
   prg_ram_info.innerHTML = html;
 
-  // PRG-ROM low page
+  /*// PRG-ROM low page
     var html = "";
     var asm = "";
     var formatted_asm = "";
@@ -181,48 +173,9 @@ CPU.init = function(){
     }
   
   prg_rom_low_page_info.innerHTML = html;
+  */
   
-  // PRG-ROM high page
-    html = "";
-    asm = "";
-    formatted_asm = "";
-    bytes_read = 0;
-    
-    // Not including PC
-    if(CPU.PC < 0xC000){
-      for(i = 0xC000; i < 0xC00A; i++){
-        html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
-      }
-    }
-    
-    // Including PC
-    else {
-      for(i = CPU.PC - 1; i < CPU.PC + 9; i++){
-        
-        // Opcode (add ASM code)
-        if(bytes_read == 0 && i >= CPU.PC){
-          formatted_asm = tools.format_asm(i);
-          asm = formatted_asm[0];
-          bytes_read = formatted_asm[1];
-          html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))} ; ${asm}</div>`;
-        }
-        
-        // Operand
-        else {
-          if(bytes_read > 0){
-            bytes_read--;
-          }
-          html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
-        }
-      }
-    }
-
-  prg_rom_high_page_info.innerHTML = html;
-  
-  var formatted_asm = tools.format_asm(CPU.PC);
-  var asm = formatted_asm[0];
-  var bytes_read = formatted_asm[1];
-  //window[`cpu_byte_${CPU.PC}`].innerHTML += ` ; ${asm}`;
+  CPU.draw_prg_rom_high_page(CPU.PC);
   
   
   // UI
@@ -248,7 +201,7 @@ CPU.init = function(){
   // Focus on stack pointer in internal RAM
   tools.focus("cpu_byte_" + CPU.S);
   
-  // Focus on first instruction in PRG_ROM (PC = reset vector)
+  // Focus on first instruction in PRG-ROM (PC = reset vector)
   tools.focus("cpu_byte_" + CPU.PC);
 };
 
@@ -266,7 +219,7 @@ CPU.read_write = function(address, signed, value){
       address %= 0x800;
     }
     
-    // $2000-$3FFF: PPU I/O & mirrors
+    // $2000-$3FFF: I/O & mirrors
     else if(address < 0x4000){
       address = ((address - 0x2000) % 8) + 0x2000;
     }
@@ -274,6 +227,8 @@ CPU.read_write = function(address, signed, value){
     // Write
     if(write){
       CPU.memory[address] = value;
+      window["cpu_byte_" + address].innerHTML = tools.format2(value);
+      tools.focus("cpu_byte_" + address);
     }
     
     // Read
@@ -392,13 +347,14 @@ CPU.write = function(address, value){
 CPU.op = function(){
   
   var opcode = CPU.read(CPU.PC);
+  var operand = 0;
   var extra_bytes = 0;
   
   switch(opcode){
     
-    // SEI
+    // 0x78: SEI
     // I = 1
-    // Set interrupt disable flag.
+    // Set interrupt disable flag
     case 0x78:
       CPU.I = 1;
       CPU.P = CPU.P | 0b100;
@@ -407,11 +363,142 @@ CPU.op = function(){
       CPU.cycles += 2;
       extra_bytes = 0;
       break;
+      
+    // 0x8D: STA a
+    // M = A
+    // Store A in M
+    case 0x8D:
+    
+      operand = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
+      console.log(operand.toString(16));
+      CPU.write(operand, CPU.A);
+      CPU.cycles += 4;
+      extra_bytes = 2;
+      break;
+      
+    
+    // 0xA2: LDX #i
+    // X,Z,N = M
+    // Load M in X. Z: set if X = 0. N: bit 7 of X
+    case 0xA2:
+      CPU.X = CPU.read(CPU.PC + 1);
+      x_info.innerHTML = tools.format2(CPU.X);
+      if(CPU.X === 0){
+        CPU.Z = 1;
+        CPU.P = CPU.P | 0x10;
+        z_info.innerHTML = CPU.Z;
+      }
+      CPU.N = CPU.X >> 6;
+      if(CPU.N === 1){
+        CPU.P = (CPU.P | 0b10000000);
+      }
+      else {
+        CPU.P = (CPU.P & 0b01111111);
+      }
+      n_info.innerHTML = CPU.N;
+      p_info.innerHTML = tools.format2(CPU.P);
+      CPU.cycles += 2;
+      extra_bytes = 1;
+      break;
+    
+    
+    // 0xA9: LDA #i
+    // A,Z,N = M
+    // Load M in A. Z: set if A = 0. N: bit 7 of A
+    case 0xA9:
+      CPU.A = CPU.read(CPU.PC + 1);
+      a_info.innerHTML = tools.format2(CPU.A);
+      if(CPU.A === 0){
+        CPU.Z = 1;
+        CPU.P = CPU.P | 0x10;
+        z_info.innerHTML = CPU.Z;
+      }
+      CPU.N = CPU.A >> 6;
+      if(CPU.N === 1){
+        CPU.P = (CPU.P | 0b10000000);
+      }
+      else {
+        CPU.P = (CPU.P & 0b01111111);
+      }
+      n_info.innerHTML = CPU.N;
+      p_info.innerHTML = tools.format2(CPU.P);
+      CPU.cycles += 2;
+      extra_bytes = 1;
+      break;
+    
+    // 0xD8: CLD
+    // D = 0
+    // Clear decimal flag
+    case 0xD8:
+      CPU.D = 0;
+      CPU.P = CPU.P & 0b11110111;
+      d_info.innerHTML = CPU.D;
+      p_info.innerHTML = tools.format2(CPU.P);
+      CPU.cycles += 2;
+      extra_bytes = 0;
+      break;
   }
   
-  cpu_cycles_info.innerHTML = tools.format4(CPU.cycles);
+  cpu_cycles_info.innerHTML = CPU.cycles;
   CPU.PC = CPU.PC + extra_bytes + 1;
   pc_info.innerHTML = tools.format4(CPU.PC);
-  tools.focus("cpu_byte_" + CPU.PC);
+  CPU.draw_prg_rom_high_page(CPU.PC);
   
+}
+
+// UI helpers
+
+// PRG-ROM low page
+CPU.draw_prg_rom_low_page = function(address){
+  var html = "";
+  
+  // Default 
+  /*if(typeof address === "undefined"){
+    for(i = 0x2000; i < 0x2005; i++){
+      html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
+    }
+  }
+  
+  // Focus on one address
+  else {
+    var min = Math.max(0x2000, address - 1);
+    for(i = min; i < min + 5; i++){
+      html += `<div id=cpu_byte_${i} class=${i == address ? 'focus' : ''}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
+    }
+  }*/
+  
+  // Focused  
+  //io_info.innerHTML = html;
+}
+
+// PRG-ROM high page
+// TODO: bankswitch
+CPU.draw_prg_rom_high_page = function(address){
+  var html = "";
+  
+  
+  // Default 
+  if(typeof address === "undefined"){
+    for(i = 0xC000; i < 0xC00A; i++){
+      html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
+    }
+  }
+  
+  // Focus on one address
+  else {
+    var min = Math.max(0xC000, address - 3);
+    for(i = min; i < min + 10; i++){
+      if(i == address){
+        html += (gamepak.asm[1][i - 0xC000] = gamepak.asm[1][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}; ${tools.asm(i)}</div>`);
+      }
+      else {
+        html += (gamepak.asm[1][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`);
+      }
+    }
+  }
+  prg_rom_high_page_info.innerHTML = html;
+  
+  if(window["cpu_byte_" + address]){
+    window["cpu_byte_" + address].classList.add("focus");
+  }
 }

@@ -32,71 +32,59 @@ tools.focus = function(id){
 
 // Format an ASM instruction with the right addressing mode
 // @param pointer in CPU memory
-// @return [formatted_asm, extra_bytes_read];
-tools.format_asm = function(pointer){
+tools.asm = function(pointer){
   var extra_bytes = 0;
   var asm = CPU.opcodes[CPU.read(pointer)];
   
   // Indirect indexed: immediate 8-bit operand
   if(/d,X/.test(asm)){
-     asm = asm.replace(/d,X/, "$" + tools.format2(CPU.read(pointer + 1)) + ",X");
-     extra_bytes = 1;
+    asm = asm.replace(/d,X/, "$" + tools.format2(CPU.read(pointer + 1)) + ",X");
   }
   else if(/d,Y/.test(asm)){
-     asm = asm.replace(/d,Y/, "$" + tools.format2(CPU.read(pointer + 1)) + ",Y");
-     extra_bytes = 1;
+    asm = asm.replace(/d,Y/, "$" + tools.format2(CPU.read(pointer + 1)) + ",Y");
   }
   
   // Absolute indexed: immediate 16-bit operand
   else if(/a,X/.test(asm)){
-     asm = asm.replace(/a,X/, "$" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)) + ",X");
-     extra_bytes = 2;
+    asm = asm.replace(/a,X/, "$" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)) + ",X");
   }
   else if(/a,Y/.test(asm)){
-     asm = asm.replace(/a,Y/, "$" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)) + ",Y");
-     extra_bytes = 2;
+    asm = asm.replace(/a,Y/, "$" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)) + ",Y");
   }
   
   // Indexed indirect: immediate 8-bit operand
   else if(/\(d,X\)/.test(asm)){
-     asm = asm.replace(/\(d,X\)/, "($" + tools.format2(CPU.read(pointer + 1)) + ",X");
-     extra_bytes = 1;
+    asm = asm.replace(/\(d,X\)/, "($" + tools.format2(CPU.read(pointer + 1)) + ",X");
   }
   // Indirect indexed: immediate 8-bit operand
   else if(/\(d\),Y/.test(asm)){
-     asm = asm.replace(/\(d\),Y/, "($" + tools.format2(CPU.read(pointer + 1)) + "),Y");
-     extra_bytes = 1;
+    asm = asm.replace(/\(d\),Y/, "($" + tools.format2(CPU.read(pointer + 1)) + "),Y");
   }
   
   // Immediate: 8-bit operand
   else if(/#i/.test(asm)){
-     asm = asm.replace(/#i/, "#$" + tools.format2(CPU.read(pointer + 1)));
-     extra_bytes = 1;
+    asm = asm.replace(/#i/, "#$" + tools.format2(CPU.read(pointer + 1)));
   }
   
   // Zero page: immediate 8-bit zero page index
   else if(/ d$/.test(asm)){
-     asm = asm.replace(/ d$/, " $" + tools.format2(CPU.read(pointer + 1)));
-     extra_bytes = 1;
+    asm = asm.replace(/ d$/, " $" + tools.format2(CPU.read(pointer + 1)));
   }
   
   // Relative: PC + 2 + immediate signed 8-bit operand
   else if(/\*\+d/.test(asm)){
-     asm = asm.replace(/\*\+d/, "$" + tools.format4(pointer + 2 + CPU.read(pointer + 1, 1)));
-     extra_bytes = 1;
+    asm = asm.replace(/\*\+d/, "$" + tools.format4(pointer + 2 + CPU.read(pointer + 1, 1)));
   }
   
   // Absolute: immediate 16-bit operand
   else if(/ a/.test(asm)){
-     asm = asm.replace(/ a/, " $" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)));
-     extra_bytes = 2;
+    asm = asm.replace(/ a/, " $" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)));
   }
   
   // Indirect: immediate 16-bit address pointing to 16-bit instruction operand
   else if(/\(\a\)/.test(asm)){
-     asm = asm.replace(/\(\a\)/, "($" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)) + ")");
-     extra_bytes = 1;
+    asm = asm.replace(/\(\a\)/, "($" + tools.format4((CPU.read(pointer + 2) << 8) + CPU.read(pointer + 1)) + ")");
   }
   
-  return [asm, extra_bytes];
+  return asm;
 }
