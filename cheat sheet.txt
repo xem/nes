@@ -295,7 +295,7 @@ The following table details how each opcode works:
 | INX | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = X+1           | Increment X. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
 | INY | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = Y+1           | Increment Y. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
 | JMP | ------- |    |    |    |    |     |     | 3  |     |     |     | 5   |     |     |                       | Jump (set PC) to the address in the operand. (Buggy *).                                                              |
-| JSR | ------- |    |    |    |    |     |     | 6  |     |     |     |     |     |     |                       | Jump to subroutine: push PC-1 on the stack and set PC to the address in operand.                                     |
+| JSR | ------- |    |    |    |    |     |     | 6  |     |     |     |     |     |     |                       | Jump to subroutine: push PC - 1 on the stack and set PC to the address in operand.                                   |
 | LDA | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = M             | Load M in A. Z: set if A = 0. N: bit 7 of A.                                                                         |
 | LDX | -Z----N |    |    | 2  | 3  |     | 4   | 4  |     | 4+  |     |     |     |     | X,Z,N = M             | Load M in X. Z: set if X = 0. N: bit 7 of X.                                                                         |
 | LDY | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  |     |     |     |     |     | Y,Z,N = M             | Load M in Y. Z: set if Y = 0. N: bit 7 of Y.                                                                         |
@@ -309,7 +309,7 @@ The following table details how each opcode works:
 | ROL | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     |                       | Save C in a var. Put bit 7 of A or M in C. Left shift A or M. Bit 0 = saved C.                                       |
 | ROR | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     |                       | Save C in a var. Put bit O of A or M in C. Right shift A or M. Bit 7 = saved C.                                      |
 | RTI | CZIDBVN | 6  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Return from interrupt: pull P (the flags) and PC from the stack.                                                     |
-| RTS | ------- | 6  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Return from subroutine: pull PC-1 from the stack (see JSR).                                                          |
+| RTS | ------- | 6  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Return from subroutine: pull PC - 1 from the stack (see JSR).                                                        |
 | SBC | CZ---VN |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,C,N = A-M-!C      | Sub M and NOT C to A. C: 0 if bit 7 overflows. Z: set if A = 0. V: set if sign bit is wrong. N: set if bit 7 is set. |
 | SEC | C------ | 2  |    |    |    |     |     |    |     |     |     |     |     |     | C = 1                 | Set carry flag.                                                                                                      |
 | SED | ---D--- | 2  |    |    |    |     |     |    |     |     |     |     |     |     | D = 1                 | Set decimal flag.                                                                                                    |
@@ -333,33 +333,29 @@ The following table details how each opcode works:
 The opcodes operand, if explicit, is encoded in the byte (or pair of bytes) that follow the instruction in PRG-ROM.
 Many encodings of this operand exist, and are called addressing modes.
 
-Indexed:
++-------+-------------------+-------+--------------------------------------------------------------------+---------+
+| Abbr. | Name              | Bytes | Formula for the opcode's operand (**)                              | Cycles* |
++-------+-------------------+-------+--------------------------------------------------------------------+---------+
+|       | Implicit          | 0     | No operand or implied operand. (ex: RTS, CLC)                      | 2-7     |
+| A     | Accumulator       | 0     | operand = A (A is implied. ex: LSR == LSR A)                       | 2       |
+| #i    | Immediate         | 1 (i) | operand = #i                                                       | 2       |
+| d     | Zero page         | 1 (d) | operand = d                                                        | 3-5     |
+| *+d   | relative          | 1 (d) | operand = PC + 2 + signed(d)                                       | 2*      |
+| a     | Absolute          | 2 (a) | operand = a                                                        | 3-6     |
+| (a)   | Indirect          | 2 (a) | operand = memory[a] + (memory[a + 1] << 8)                         | 5       | \
+| d,X   | Zero page indexed | 1 (d) | operand = (d + X) % 256                                            | 4-6     | |
+| d,Y   | Zero page indexed | 1 (d) | operand = (d + Y) % 256                                            | 4       | |
+| a,X   | Absolute indexed  | 2 (a) | operand = a + X                                                    | 4-7     | |_ indexed
+| a,Y   | Absolute indexed  | 2 (a) | operand = a + Y                                                    | 4-5     | |  operand
+| (d,X) | Indexed indirect  | 1 (d) | operand = memory[(d + X) % 256] + (memory[(d + X + 1) % 256] << 8) | 6       | |
+| (d),Y | Indirect indexed  | 1 (d) | operand = memory[d] + (memory[(d + 1) % 256] << 8) + Y             | 5-6     | |
++-------+-------------------+----------------------------------------------------------------------------+---------+ /
+(*) The last column represents the cycles used for the whole opcode, not just to fetch the operand
 
-+-------+-------------------+-------+-----------------------------------------------------------------+--------+
-| Abbr. | Name              | Bytes | Formula for the opcode's operand                                | Cycles |
-+-------+-------------------+-------+-----------------------------------------------------------------+--------+
-| d,X   | Zero page indexed | 1 (d) | memory[(d + X) % 256]                                           | 4-6    |
-| d,Y   | Zero page indexed | 1 (d) | memory[(d + Y) % 256]                                           | 4      |
-| a,X   | Absolute indexed  | 1 (a) | memory[a + X]                                                   | 4-7    |
-| a,Y   | Absolute indexed  | 1 (a) | memory[a + Y]                                                   | 4-5    |
-| (d,X) | Indexed indirect  | 1 (d) | memory[memory[(d + X) % 256] + memory[(d + X + 1) % 256] * 256] | 6      |
-| (d),Y | Indirect indexed  | 1 (d) | memory[memory[d] + memory[(d + 1) % 256] * 256 + Y]             | 5-6    |
-+-------+-------------------+-------------------------------------------------------------------------+--------+
-
-Others:
-
-+-------+-------------+-------+-----------------------------------------------+--------+
-| Abbr. | Name        | Bytes | Formula for the opcode's operand              | Cycles |
-+-------+-------------+-------+-----------------------------------------------+--------+
-|       | Implicit    | 0     | No operand or implied operand. (ex: RTS, CLC) | 2-7    |
-| A     | Accumulator | 0     | operand = A (A is implied. ex: LSR == LSR A)  | 2      |
-| #i    | Immediate   | 1 (i) | operand = #i                                  | 2      |
-| d     | Zero page   | 1 (d) | operand = memory[d]                           | 3-5    |
-| *+d   | relative    | 1 (d) | operand = PC + 2 + signed(d)                  | 2*     |
-| a     | Absolute    | 2 (a) | operand = memory[a]                           | 4-6    |
-| (a)   | Indirect    | 2 (a) | operand = memory[a + 1] << 8 + memory[a]      | 5      |
-+-------+-------------+-------+-----------------------------------------------+--------+
-
+(**) #i = memory[PC + 1]
+     d = memory[PC + 1]
+     a = (memory[PC + 2] << 8) + memory[PC + 1]
+     
 ---
 
 > 8-bit signed numbers

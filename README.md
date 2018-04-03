@@ -33,3 +33,5 @@ bfirsh's JSNES: https://github.com/bfirsh/jsnes
 Joel Yliluoma's (Bisqwit) nesemu1: https://bisqwit.iki.fi/jutut/kuvat/programming_examples/nesemu1/
 
 Maizure's Decoded nesemu1: http://www.maizure.org/projects/decoded-bisqwit-nes-emulator/
+
+6502.js: https://github.com/Torlus/6502.js/blob/master/6502.js

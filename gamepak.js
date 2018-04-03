@@ -37,7 +37,7 @@ gamepak = {
   extra_ROM_signed: [],
   extra_ROM: [],
   
-  // ASM code for each PRG-ROM bank
+  // ASM code for each PRG-ROM bank opcode
   asm: [],
   
 };
