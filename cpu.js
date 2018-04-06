@@ -51,6 +51,9 @@ CPU = {
   // Cycles
   cycles: 0,
   
+  // Loop
+  loop:  null,
+  
 };
 
 // Methods
@@ -187,15 +190,25 @@ CPU.read_write = function(address, signed, value){
       address = ((address - 0x2000) % 8) + 0x2000;
     }
     
+    // Focus
+    tools.focus("cpu_byte_" + address);
+    
     // Write
     if(write){
       CPU.memory[address] = value;
       window["cpu_byte_" + address].innerHTML = tools.format2(value);
-      tools.focus("cpu_byte_" + address);
     }
     
     // Read
     else {
+      
+      // Clear bit 7 of $2002 on read
+      if(address == 0x2002){
+        value = CPU.memory[address];
+        CPU.write(0x2002, value & 0b01111111);
+        return value;
+      }
+      
       return CPU.memory[address];
     }
   }
@@ -311,9 +324,11 @@ CPU.op = function(){
   
   var opcode = CPU.read(CPU.PC);
   var operand = 0;
-  //var address = 0;
+  var tmp;
   var M = 0;
   var extra_bytes = 0;
+  var branch = 0;
+  var cycles = 0;
   
   // The byte at address [PC] defines the current opcode (among 56 different ones) and its addressing mode (among 12 different ones)
   
@@ -350,7 +365,7 @@ CPU.op = function(){
       operand = CPU.PC + 1;
       
       // 2 CPU cycles
-      CPU.cycles += 2;
+      cycles += 2;
       
       // 1 extra byte is read
       extra_bytes = 1;
@@ -395,7 +410,7 @@ CPU.op = function(){
       operand = CPU.read(CPU.read(CPU.PC + 1));
       
       // 2 CPU cycles
-      CPU.cycles += 2;
+      cycles += 2;
       
       // 1 extra byte is read
       extra_bytes = 1;
@@ -417,7 +432,7 @@ CPU.op = function(){
       
       // 2* CPU cycles
       // TODO: 1 extra cycle is used if the branch succeeds and 2 extra cycles are used if the branch goes to a new page
-      CPU.cycles += 2;
+      cycles += 2;
       
       // 1 extra byte is read
       extra_bytes = 1;
@@ -460,11 +475,10 @@ CPU.op = function(){
     
       // Operand: a 2B immediate address in Big-Endian
       operand = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
-      console.log(operand);
       
       // 3-6 CPU cycles
       // TODO: figure out why 3-6, 6502.js says 4
-      CPU.cycles += 4;
+      cycles += 4;
       
       // 2 extra bytes are read
       extra_bytes = 2;
@@ -483,7 +497,7 @@ CPU.op = function(){
       );
       
       // 5 CPU cycles
-      CPU.cycles += 5;
+      cycles += 5;
       
       // 2 extra bytes are read
       extra_bytes = 2;
@@ -525,7 +539,7 @@ CPU.op = function(){
       
       // 4-6 CPU cycles
       // TODO cycles
-      CPU.cycles += 0;
+      cycles += 0;
       
       // 1 extra byte is read
       extra_bytes = 1;
@@ -542,7 +556,7 @@ CPU.op = function(){
       operand = CPU.read((CPU.read(CPU.PC + 1) + CPU.Y) % 256);
       
       // 4 CPU cycles
-      CPU.cycles += 4;
+      cycles += 4;
       
       // 1 extra byte is read
       extra_bytes = 1;
@@ -585,7 +599,8 @@ CPU.op = function(){
       )
       
       // 4-7 CPU cycles
-      CPU.cycles += 0;
+      // TODO
+      cycles += 0;
       
       // 2 extra bytes are read
       extra_bytes = 2;
@@ -620,7 +635,8 @@ CPU.op = function(){
       )
       
       // 4-5 CPU cycles
-      CPU.cycles += 0;
+      // TODO
+      cycles += 0;
       
       // 2 extra bytes are read
       extra_bytes = 2;
@@ -658,7 +674,7 @@ CPU.op = function(){
       );
       
       // 6 CPU cycles
-      CPU.cycles += 6;
+      cycles += 6;
       
       // 1 extra byte is read
       extra_bytes = 1;
@@ -697,7 +713,8 @@ CPU.op = function(){
       );
       
       // 5-6 CPU cycles
-      CPU.cycles += 0;
+      // TODO
+      cycles += 0;
       
       // 1 extra byte is read
       extra_bytes = 1;
@@ -708,13 +725,15 @@ CPU.op = function(){
     default:
       
       // 2 CPU cycles
-      CPU.cycles += 2;
+      cycles += 2;
     
     break;
   }
   
-  console.log("operand:" + operand)
   
+  
+  
+  //console.log("operand:" + operand)
   
   
   
@@ -723,6 +742,31 @@ CPU.op = function(){
   // Opcode
   switch(opcode){
 
+    // AND
+    // A,Z,N = A&M
+    // Store in A the result of of M AND A. Z: set if A = 0. N: set if bit 7 of result is set.
+    case 0x21: // AND (d,X)
+    case 0x25: // AND d
+    case 0x29: // AND #i
+    case 0x2d: // AND a
+    case 0x31: // AND (d),Y
+    case 0x35: // AND d,X
+    case 0x39: // AND a,Y
+    case 0x3d: // AND a,X
+      CPU.A = operand & CPU.A;
+      CPU.set_z(CPU.A);
+      CPU.set_n_if_bit_7(CPU.A);
+      break;
+      
+    // BEQ
+    // Branch to relative address (PC += rel) if Z = 1. rel is signed.
+    case 0xf0: // BEQ *+d
+      if(CPU.Z == 1){
+        CPU.PC = operand;
+        branch = 1;
+      }
+      break;
+    
     // CLD
     // D = 0
     // Clear decimal flag
@@ -741,7 +785,11 @@ CPU.op = function(){
     case 0xb5: // LDA d,X
     case 0xb9: // LDA a,Y
     case 0xbd: // LDA a,X
+      //console.log(operand.toString(16));
+      //console.log(CPU.read(operand));
       CPU.A = CPU.read(operand);
+      //console.log(CPU.A);
+      //console.log(tools.format2(CPU.A));
       a_info.innerHTML = tools.format2(CPU.A);
       CPU.set_z(CPU.A);
       CPU.set_n(CPU.A);
@@ -755,7 +803,6 @@ CPU.op = function(){
     case 0xae: // LDX a
     case 0xb6: // LDX d,Y
     case 0xbe: // LDX a,Y
-    
       CPU.X = CPU.read(operand);
       x_info.innerHTML = tools.format2(CPU.X);
       CPU.set_z(CPU.X);
@@ -793,7 +840,23 @@ CPU.op = function(){
   }
   
   // Update PC
-  CPU.PC = CPU.PC + extra_bytes + 1;
+  if(!branch){
+    CPU.PC = CPU.PC + extra_bytes + 1;
+  }
+  
+  // Ticks
+  // The PPU and APU tick 3 times during each CPU tick
+  CPU.cycles += cycles;
+  for(var i = 0; i < cycles; i++){
+    PPU.tick();
+    PPU.tick();
+    PPU.tick();
+    /*
+    APU.tick();
+    APU.tick();
+    APU.tick();
+    */
+  }
   
   // Update UI
   p_info.innerHTML = tools.format2(CPU.P);
@@ -807,6 +870,9 @@ CPU.op = function(){
 
 // PRG-ROM low page
 CPU.draw_prg_rom_low_page = function(address){
+  
+  if(!debug) return;
+  
   var html = "";
   
   // Default 
@@ -838,6 +904,9 @@ CPU.draw_prg_rom_low_page = function(address){
 // PRG-ROM high page
 // TODO: bankswitch
 CPU.draw_prg_rom_high_page = function(address){
+  
+  if(!debug) return;
+  
   var html = "";
   
   // Default 
@@ -900,17 +969,26 @@ CPU.set_z = function(value){
     CPU.Z = 1;
     
     // Update P
-    CPU.P = CPU.P | 0x10;
-    
-    // UI
-    z_info.innerHTML = CPU.Z;
+    CPU.P = CPU.P | 0b00000010;
   }
+  
+  else {
+    
+    // Clear Z
+    CPU.Z = 0;
+    
+    // Update P
+    CPU.P = CPU.P & 0b11111101;
+  }
+  
+  // UI
+  z_info.innerHTML = CPU.Z;
 }
 
 CPU.set_n = function(value){
   
   // Set N
-  CPU.N = CPU.A >> 6;
+  CPU.N = CPU.A >> 7;
   
   // Update P
   if(CPU.N === 1){
@@ -922,4 +1000,44 @@ CPU.set_n = function(value){
   
   // UI
   n_info.innerHTML = CPU.N;
+}
+
+CPU.set_n_if_bit_7 = function(value){
+  
+  if((value >> 6) == 1){
+    
+    // Set N
+    CPU.N = CPU.A >> 6;
+  
+    // Update P
+    CPU.P = (CPU.P | 0b10000000);
+  
+    // UI
+    n_info.innerHTML = CPU.N;
+  }
+}
+
+// Play until PC reaches the value in the breakpoint input (if any)
+CPU.play = function(){
+  debug = false;
+  var breakpoint_address = breakpoint.value ? parseInt(breakpoint.value, 16) : -1;
+  //console.log(breakpoint_address);
+  CPU.loop = setInterval(function(){
+    for(var i = 0; i < 1000; i++){
+      if(CPU.PC != breakpoint_address){
+        CPU.op();
+      }
+      else {
+        clearInterval(CPU.loop);
+        debug = true;
+        CPU.draw_prg_rom_low_page(CPU.PC);
+        CPU.draw_prg_rom_high_page(CPU.PC);
+        screen_x_info.innerHTML = PPU.x;
+        screen_y_info.innerHTML = PPU.y;
+        screen_canvas.width = screen_canvas.width; 
+        PPU.screen_ctx.fillStyle = "red";
+        PPU.screen_ctx.fillRect(PPU.x, PPU.y, 2, 2);
+      }
+    }
+  },9)
 }

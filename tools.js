@@ -19,6 +19,7 @@ tools.format4 = function(n){
 
 // Focus a list item
 tools.focus = function(id){
+  if(!debug) return;
   var element = window[id];
   if(element){
     var parent = element.parentNode;

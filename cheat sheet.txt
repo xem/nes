@@ -8,7 +8,7 @@ I. Physical cartridge (Game PAK)
 --------------------------------
 
 Cartridges always contain at least one PRG-ROM bank and one CHR bank (ROM or RAM).
-Some games contain extra chips to extend the NES's RAM or to save the player's progress.
+Some games contain extra chips to extend the NES's processing power or to save the player's progress.
 
 +---------+--------+--------+----------------------------------------------------+
 | Banks   | Size   | Number | Use                                                |
@@ -18,15 +18,17 @@ Some games contain extra chips to extend the NES's RAM or to save the player's p
 | CHR-ROM | 8KB    | 0-4096 | Game graphics, also called VROM (R)                |
 | CHR-RAM | 8KB    | 0-1    | Game graphics decompressed here at runtime (R/W)   |
 | VRAM    | 2KB    | 0-1    | Add 2 screens of nametable memory to the PPU (R/W) |
-| trainer | 512B   | 0-1    | Program executed before the game starts (R)        |
+| trainer | 512B   | 0-1    | Mapper subroutines (R)                             |
 | extra   | 8KB    | 0-3    | Extra ROM banks / hint screen data (R)             |
 +---------+--------+--------+----------------------------------------------------+
 
 The NES CPU and PPU can only address 32KB of PRG-ROM and 8KB of CHR-ROM at once.
 A lot of games can fit in this size (ex: Super Mario Bros - 40KB).
-Bigger games perform bank switching to access different parts of ROM/RAM when needed.
+Bigger games perform bank switching to access different parts of the cartridge's ROM/RAM when they're needed.
 Banks setup and switching for each game is defined by a mapper (see VI. Mappers).
-Mappers also define the PPU's nametables' mirroring, or extend them with a VRAM chip (see III. PPU).
+Mappers also define the PPU's nametables' mirroring, or extend them with a 2KB VRAM chip (see III. PPU).
+Emulators generally simulate the battery-packed PRG-RAM with a save file written on disk.
+Extra banks and hint screen seems to be used on arcade systems only. 
 Games are dumped in files called "ROM". The most used ROM format (iNES) is described below.
 
 II. iNES ROM file format
@@ -34,7 +36,7 @@ II. iNES ROM file format
 
 > Summary
 
-Two versions of this format exist (1.0 and 2.0), both are described here. They use the extension ".nes".
+Two main versions of this format exist (1.0 and 2.0), both are described here. They use the extension ".nes".
 The file starts with a 16B header containing all the metadata required to emulate the game, followed by the PRG-ROM and CHR-ROM data.
 
 > Header
@@ -53,7 +55,7 @@ The file starts with a 16B header containing all the metadata required to emulat
 | 6    | $xx   | Flags 6 (see below)                                                                     |
 | 7    | $xx   | Flags 7 (see below)                                                                     |
 +------+-------+-----------------------------------------------------------------------------------------+
-| 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (0 => add 1 bank for better compatibility)      |
+| 8    | $xx   | - iNES 1.0: Number of 8KB PRG-RAM banks (if 0 => add 1 bank for better compatibility)   |
 |      |       | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)                 |
 +------+-------+-----------------------------------------------------------------------------------------+
 | 9    | $xx   | - iNES 1.0: TV system (0: NTSC / 1: PAL), do not rely blindly on this value if it's 0   |
@@ -62,7 +64,7 @@ The file starts with a 16B header containing all the metadata required to emulat
 | 10   | $xx   | iNES 2.0: PRG-RAM NOT battery-backed (bits 0-3) and battery-backed (bits 4-7) (*)       |
 | 11   | $xx   | iNES 2.0: CHR-RAM NOT battery-backed (bits 0-3) and battery-backed (bits 4-7) (*)       |
 +------+-------+-----------------------------------------------------------------------------------------+
-| 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL (do not rely blindly on this value if it's 0). Bit 1: both) |
+| 12   | $xx   | iNES 2.0: Bit 0: NTSC / PAL (do not rely blindly on this value if it's 0). Bit 1: both  |
 +------+-------+-----------------------------------------------------------------------------------------+
 | 13   | $xx   | iNES 2.0: Vs. arcade system configuration: PPU mode (bits 0-4), Vs. mode (bits 4-7)     |
 +------+-------+-----------------------------------------------------------------------------------------+
@@ -112,13 +114,13 @@ Some ROMS contain garbage (text) in the bytes 7-15 of the header. To detect iNES
 Right after the header, the ROM file contains:
 
 - A 512B trainer (if enabled in Flags 6, bit 2).
-- The 16KB PRG-ROM banks.
-- The 8KB CHR-ROM bank(s) (keep in mind that some games have 0).
+- The 16KB PRG-ROM banks (at least two).
+- The 8KB CHR-ROM banks (some games have 0).
 - The 8KB hint screen data (if enabled in Flags 7, bit 1, in iNES 1.0) or extra ROM banks (iNES 2.0).
 
 > Interrupt vector table
 
-The last 6 bytes of the last PRG-ROM bank contain 3 vectors (16-bit addresses) used by the CPU in certain conditions (see III. CPU > Interrupts):
+The last 6 bytes of the last PRG-ROM bank contain three 16-bit addresses (or vectors) used by the CPU in certain conditions (see III. CPU > Interrupts):
 
 +---------+-------------+---------------------------------------------------+
 | Vector  | Bytes       | Use                                               |
@@ -128,25 +130,32 @@ The last 6 bytes of the last PRG-ROM bank contain 3 vectors (16-bit addresses) u
 | IRQ/BRK | $FFFE-$FFFF | Jump here after an interrupt request or a BRK/PHP |
 +---------+-------------+---------------------------------------------------+
 
-These vectors are encoded in big-endian (Ex: NMI vector = [$F00B] << 8 + [$F00A]).
+These vectors are encoded in big-endian.
+Ex: NMI vector = (memory[$FFFB] << 8) + memory[$FFFA]
 
-Special case: ROMs with only 16KB of PRG-ROM (Ex: Donkey Kong, using mapper 0):
+---
+
+> PRG-ROM mirroring
+
+Some ROMs only use 16KB of PRG-ROM (Ex: Donkey Kong):
 - The header indicates 2 PRG-ROM banks.
-- The first bank is filled with 0 (except for the last 49B, probably garbage data due to a dump error).
+- The first bank is filled with 0 (except for the last 48B, seemingly garbage data).
 - The next 16KB contain the game's code.
-In that case, the CPU memory mirrors the second bank ($C000-$FFFF) into the first ($8000-$BFFF).
+In that case, the CPU memory mirrors the second bank ($C000-$FFFF) into the first bank ($8000-$BFFF).
+
 
 III. CPU
 --------
 
 > Summary
 
-The CPU executes the opcode (instruction) stored at the address pointed by the PC register.
+The CPU continuously executes the opcode (instruction) stored at the address pointed by the PC register.
 Some instructions are followed by immediate operands (1 or 2 bytes).
-Instructions take 2 to 7 CPU cycles (also called ticks) to execute, and generally involve the status registers and/or the memory.
-PC is incremented after each instruction (1, 2 or 3 bytes, depending on the size of the opcode plus the operand).
-Some memory addresses are used to control (or read data from) other components (cartridge mapper, PPU, APU, joypads...).
-Interrupts can pause the program and execute a dedicated routine, before resuming normal execution.
+Instructions take 2 to 7 CPU cycles (also called ticks) to execute.
+PC is incremented after each instruction (+1, +2 or +3 bytes, according to the operand size).
+In case of valid branch / jump instruction, PC is just set to a new value, without being incremented.
+The CPU communicates with other components (mapper, PPU, APU, joypads...) through reads and writes in specific memory addresses.
+The interrupts can pause the program and execute a dedicated routine, before resuming normal execution.
 
 > CPU memory map (64KB)
 
@@ -184,9 +193,8 @@ Interrupts can pause the program and execute a dedicated routine, before resumin
 | $FFFE-$FFFF | 2B    | - IRQ/BRK vector     => .nes file $800E-$800F (*)     |
 +-------------+-------+-------------------------------------------------------+
 (*) These values are valid for games that have 32KB of PRG-ROM or less and no trainer.
-Games with more than 32KB of PRG-ROM use mappers to switch the low and/or high PRG-ROM bank with other banks on the cartridge.
-Some mappers fix a bank or a part of a bank in memory. The fixed banks keep the same values after a bank switch.
-Whatever bankswitch scheme is used, the vector table will always be available at the addresses $FFFA-$FFFF.
+Some mappers allow to fix a bank or a part of a bank in memory. The fixed banks keep the same values after a bank switch.
+Even during bankswitches, the vector table will always be available $FFFA-$FFFF.
 
 ---
 
@@ -268,7 +276,7 @@ The following table details how each opcode works:
 | Op  | Flags   |    | A  | #i | d  | d,X | d,Y | a  | a,X | a,Y | *+d | (a) |(d,X)|(d),Y| Operation             | Details                                                                                                              |
 +-----+---------+----+----+----+----+-----+-----+----+-----+-----+-----+-----+-----+-----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
 | ADC | CZ---VN |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,C,N = A+M+C       | Add M, A and C. C: set if bit 7 of result is set overflows. Z: set if A = 0. N: set if bit 7 of result is set.       |
-| AND | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = A&M           | Logical AND, bit by bit, of M and A. Z: set if A = 0. N: set if bit 7 of result is set.                              |
+| AND | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = A&M           | Store in A the result of of M AND A. Z: set if A = 0. N: set if bit 7 of result is set.                              |
 | ASL | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | (A|M),Z,C,N = M*2     | Left shift A or M after putting bit 7 in C. Bit 0 = 0. Z: set if A = 0. N = set if bit 7 of result is set.           |
 | BCC | ------- |    |    |    |    |     |     |    |     |     | 2*  |     |     |     |                       | Branch to relative address (PC += rel) if C = 0.                                                                     |
 | BCS | ------- |    |    |    |    |     |     |    |     |     | 2*  |     |     |     |                       | Branch to relative address (PC += rel) if C = 1.                                                                     |
@@ -294,7 +302,7 @@ The following table details how each opcode works:
 | INC | -Z----N |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | M,Z,N = M+1           | Increment M. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
 | INX | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = X+1           | Increment X. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
 | INY | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = Y+1           | Increment Y. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
-| JMP | ------- |    |    |    |    |     |     | 3  |     |     |     | 5   |     |     |                       | Jump (set PC) to the address in the operand. (Buggy *).                                                              |
+| JMP | ------- |    |    |    |    |     |     | 3  |     |     |     | 5   |     |     |                       | Jump (set PC) to the address in the operand. (*).                                                                    |
 | JSR | ------- |    |    |    |    |     |     | 6  |     |     |     |     |     |     |                       | Jump to subroutine: push PC - 1 on the stack and set PC to the address in operand.                                   |
 | LDA | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = M             | Load M in A. Z: set if A = 0. N: bit 7 of A.                                                                         |
 | LDX | -Z----N |    |    | 2  | 3  |     | 4   | 4  |     | 4+  |     |     |     |     | X,Z,N = M             | Load M in X. Z: set if X = 0. N: bit 7 of X.                                                                         |
@@ -324,7 +332,7 @@ The following table details how each opcode works:
 | TXS | ------- | 2  |    |    |    |     |     |    |     |     |     |     |     |     | S = X                 | Copy X in S.                                                                                                         |
 | TYA | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | A = Y                 | Copy Y in A. Z: set if A = 0. N: set if bit 7 of A is set.                                                           |
 +-----+---------+----+----+----+----+-----+-----+----+-----+-----+-----+-----+-----+-----+-----------------------+----------------------------------------------------------------------------------------------------------------------+
-(*) Buggy indirect jump: if the indirect vector falls on a page boundary ($xxFF), it will fetch the bits 4-7 from $xxFF as expected, and the bits 0-3 from $xx00.
+(*) JMP is buggy: if the indirect vector falls on a page boundary ($xxFF), it will fetch the bits 4-7 from $xxFF as expected, and the bits 0-3 from $xx00.
 
 ---
 
@@ -468,7 +476,7 @@ IV. PPU (Picture Processing Unit)
 
 > Summary
 
-The PPU ticks three times (renders 3 pixels on screen) during each CPU tick.
+The PPU ticks 3 times (it renders 3 pixels of the screen) during each CPU tick.
 Each pixel color is computed according to the pattern tables, nametables, palettes, OAM registers and PPU registers.
 The PPU also provides important information to the CPU through PPU registers placed in the CPU address space.
 
@@ -489,12 +497,11 @@ Every scanline from 0 to 261 is preceded by a pre-rending scanline where the PPU
      |   #                   ##      ####|             |
      |   #      #            ##     #####|             |
      |###############  ##################|             |
-     |###############  ##################|             |
- 242 +-----------------------------------+-------------+
-     | Post-render scanline (idle)                     |
-     +-------------------------------------------------+
-     | VBlank scanlines                                |
-     | (20 on NTSC, 70 on PAL)                         |
+ 241 |###############  ##################|             | <- bit 7 of $2002 is set here
+     +-----------------------------------+-------------+
+ 242 | VBlank scanlines (x20 on NTSC, x70 on PAL)      |
+     | First VBlank line = post-render scanline (idle) |
+     | Last VBlank line = pre-render scanline          |
      +-------------------------------------------------+
 
 ---
@@ -575,14 +582,14 @@ CPU $2002: PPUSTATUS register (read only):
 Reflects the state of various functions inside the PPU.
 Reading this register resets write for $2005/$2006.
 
-+-----+----------------------------------------------------------------------------+
-| Bit | Use                                                                        |
-+-----+----------------------------------------------------------------------------+
-| 0-4 | The bits 0-4 previously written into a PPU register                        |
-| 5   | Sprite overflow (set if more than 8 sprites on a scanline, but buggy)      |
-| 6   | Sprite 0 hit (cleared on pre-render line)                                  |
-| 7   | VBlank (set on line 241, cleared on pre-render line or after a $2002 read) |
-+-----+----------------------------------------------------------------------------+
++-----+-------------------------------------------------------------------------------+
+| Bit | Use                                                                           |
++-----+-------------------------------------------------------------------------------+
+| 0-4 | The bits 0-4 previously written into a PPU register                           |
+| 5   | Sprite overflow (set if more than 8 sprites on a scanline, but buggy)         |
+| 6   | Sprite 0 hit (cleared on pre-render line)                                     |
+| 7   | VBlank (set after line 241, cleared on pre-render line or after a $2002 read) |
++-----+-------------------------------------------------------------------------------+
 
 CPU $2003: OAMADDR register (write only):
 Address of the next OAM to be accessed.

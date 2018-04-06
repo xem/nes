@@ -10,6 +10,16 @@ PPU = {
   // Cycles
   cycles: 0,
   
+  // Pixels
+  x: 0,
+  y: 0,
+  
+  // Frame
+  frame: 0,
+  
+  // Canvas
+  screen_ctx: null,
+  
 };
 
 // Init CPU memory, flags, UI
@@ -23,6 +33,9 @@ PPU.init = function(){
   // OAM memory (256B) + 1 view (unsigned int)
   PPU.oam_buffer = new ArrayBuffer(256);
   PPU.oam = new Uint8Array(PPU.oam_buffer);
+  
+  // Canvas
+  PPU.screen_ctx = screen_canvas.getContext("2d");
     
   // UI
   // TODO: update PRG-ROM bank numbers on bankswitch
@@ -118,8 +131,6 @@ PPU.draw_tiles = function(page){
 PPU.draw_nametables = function(){
   var canvas = nametables;
   var ctx = canvas.getContext("2d");
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, 512, 480);
   ctx.fillStyle = "pink";
   ctx.fillRect(0, 240, 512, 1);
   ctx.fillRect(256, 0, 1, 480);
@@ -135,9 +146,7 @@ PPU.draw_palettes = function(){
 }
 
 PPU.draw_screen = function(){
-  var canvas = screen_canvas;
-  var ctx = canvas.getContext("2d");
-  ctx.fillRect(0, 0, 256, 242);
+  
 }
 
 // Read/write a byte in PPU memory
@@ -197,4 +206,45 @@ PPU.read = function(address, signed = 0){
 // If the byte is written on a read-only address, the memory isn't changed.
 PPU.write = function(address, value){
   PPU.read_write(address, 0, value);
+}
+
+
+// Tick
+PPU.tick = function(){
+  PPU.cycles++;
+  PPU.x ++;
+  
+  // New line
+  if(PPU.x > 341){
+    PPU.x = 0;
+    PPU.y++;
+  }
+  
+  //if(PPU.y > 240) console.log(PPU.x, PPU.y);
+  
+  // VBlank
+  // Set bit 7 of CPU $2002 after scanline 241
+  if(PPU.y == 242 && PPU.x == 0){
+    CPU.write(0x2002, CPU.read(0x2002) | 0b10000000);
+  }
+  
+  // Pre-render line (261 on NTSC, 311 on PAL)
+  // Clear bit 7 of CPU $2002
+  // Increment frame counter (for debugger only)
+  if(PPU.x == 0 && ((!gamepak.PAL && PPU.y == 261) || (gamepak.PAL && PPU.y == 311))){
+    CPU.write(0x2002, CPU.read(0x2002) & 0b01111111);
+    PPU.frame++;
+    PPU.y = 0;
+    frame_info.innerHTML = PPU.frame;
+  }
+  
+  if(debug){
+    screen_x_info.innerHTML = PPU.x;
+    screen_y_info.innerHTML = PPU.y;
+  
+    screen_canvas.width = screen_canvas.width; 
+    PPU.screen_ctx.fillStyle = "red";
+    PPU.screen_ctx.fillRect(PPU.x, PPU.y, 2, 2);
+  }
+  
 }

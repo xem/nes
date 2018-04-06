@@ -3,7 +3,8 @@
 gamepak = {
   
   // Settings
-  TV_system: 0,
+  TV_system: "",
+  PAL: 0,
   mapper: 0,
   submapper: 0,
   trainer_bank: 0,
@@ -152,6 +153,7 @@ gamepak.parse_rom = function(file, filename){
     // - iNES 2.0: bits 9-12 of CHR-ROM size (bits 0-3), bits 9-12 of PRG-ROM size (bits 4-7)
     if(gamepak.iNES == 1){
       gamepak.TV_system = (bytes[9] & 0b1) ? "PAL" : "NTSC ?";
+      gamepak.PAL = (bytes[9] & 0b1);
     }
     else if(gamepak.iNES == 2){
       gamepak.PRG_ROM_banks += ((bytes[9] & 0b1111) << 8);
@@ -188,8 +190,11 @@ gamepak.parse_rom = function(file, filename){
     // iNES 2.0: Bit 0: NTSC / PAL. Bit 1: both. Do not rely blindly on yhis value if it's 0.
     if(gamepak.iNES == 2){
       gamepak.TV_system = (bytes[12] & 0b1) ? "PAL" : "NTSC ?";
+      gamepak.PAL = (bytes[12] & 0b1);
+      
       if((bytes[12] & 0b10) == 0b10){
         gamepak.TV_system = "PAL + NTSC";
+        gamepak.PAL = 1;
       }
     }
     

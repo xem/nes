@@ -12,7 +12,8 @@ table table { width: 100%; }
 table table td { padding: 2px; }
 pre { margin: 0; font-family: courier, monospace; }
 button { padding: 1px 9px; border: 1px solid #888; background: #ddd }
-canvas { vertical-align: middle }
+input { width: 25px; padding: 1px 2px; border: 1px solid #888 }
+canvas { vertical-align: middle; background: #000; }
 .list { height: 138px; overflow: hidden; font-family: courier, monospace; }
 .minilist { height: 69px; overflow: hidden; font-family: courier, monospace; }
 .maxilist { height: 280px; overflow: hidden; font-family: courier, monospace; }
@@ -172,13 +173,13 @@ canvas { vertical-align: middle }
         </table>
         <div style="margin-top:5px">
           <button onclick="CPU.op()">step</button>
-          <button disabled>play</button>
-          <button disabled>pause</button>
+          <button onclick="CPU.play()">play</button> up to @ <input id=breakpoint value=c7af>
+          <button onclick="clearInterval(CPU.loop)">pause</button>
           <button disabled>reset</button>
-          <button disabled>fullscreen</button>
+          <!--button disabled>fullscreen</button>-->
         </div>
         <div style="margin:2px 0;font-family:monospace">
-          Frame 0000 CPU <span id=cpu_cycles_info>0000</span> GPU 0 px 000:000
+          Frame <span id=frame_info>0000</span> CPU <span id=cpu_cycles_info>0000</span> PPU <span id=screen_x_info>000</span>:<span id=screen_y_info>000</span>
         </div>
       </div>
   <tr>
@@ -247,12 +248,18 @@ canvas { vertical-align: middle }
 
 // Globals
 emulator = {};
+debug = true;
 
 // Init emulator/debugger based on a file and filename
 emulator.init = function(file, filename){
   gamepak.parse_rom(file, filename);
   CPU.init();
   PPU.init();
+  
+  // Debug
+  //for(var i=0;i<10300;i++){
+    //CPU.op();
+  //}
 }
 
 // Manual demo: load a ROM and use it
