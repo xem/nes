@@ -125,21 +125,8 @@ CPU.init = function(){
   
   // TODO: update PRG-ROM bank numbers on bankswitch
   
-  // Internal RAM
-  var html = "";
-  for(i = CPU.S - 1; i < CPU.S + 4; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  internal_ram_info.innerHTML = html;
-  
-  // PRG-RAM
-  var html = "";
-  for(i = 0x6000; i < 0x6005; i++){
-    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
-  }
-  
-  prg_ram_info.innerHTML = html;
-  
+  CPU.draw_internal_ram(CPU.S);
+  CPU.draw_prg_ram();
   CPU.draw_prg_rom_low_page(CPU.PC);
   CPU.draw_prg_rom_high_page(CPU.PC);
   
@@ -163,12 +150,6 @@ CPU.init = function(){
   b_info.innerHTML = CPU.B;
   v_info.innerHTML = CPU.V;
   n_info.innerHTML = CPU.N;
-
-  // Focus on stack pointer in internal RAM
-  tools.focus("cpu_byte_" + CPU.S);
-  
-  // Focus on first instruction in PRG-ROM (PC = reset vector)
-  tools.focus("cpu_byte_" + CPU.PC);
 };
 
 // Read/write a byte in CPU memory
@@ -188,15 +169,26 @@ CPU.read_write = function(address, signed, value){
     // $2000-$3FFF: I/O & mirrors
     else if(address < 0x4000){
       address = ((address - 0x2000) % 8) + 0x2000;
+
+      // Focus
+      tools.focus("cpu_byte_" + address);
     }
     
-    // Focus
-    tools.focus("cpu_byte_" + address);
     
     // Write
     if(write){
       CPU.memory[address] = value;
-      window["cpu_byte_" + address].innerHTML = tools.format2(value);
+      
+      // Focus
+      // Internal RAM
+      if(address < 0x2000){
+        CPU.draw_internal_ram(address);
+      }
+      
+      // I/O
+      else {
+        window["cpu_byte_" + address].innerHTML = tools.format2(value);  
+      }
     }
     
     // Read
@@ -407,7 +399,7 @@ CPU.op = function(){
     case 0xe7:
     
       // Operand: memory[d]
-      operand = CPU.read(CPU.read(CPU.PC + 1));
+      operand = CPU.read(CPU.PC + 1);
       
       // 2 CPU cycles
       cycles += 2;
@@ -808,6 +800,20 @@ CPU.op = function(){
       CPU.set_z(CPU.X);
       CPU.set_n(CPU.X);
       break;
+      
+    // LDY
+    // Y,Z,N = M
+    // Load M in Y. Z: set if Y = 0. N: bit 7 of Y
+    case 0xa0: // LDY #i
+    case 0xa4: // LDY d
+    case 0xac: // LDY a
+    case 0xb4: // LDY d,X
+    case 0xbc: // LDY a,X
+      CPU.Y = CPU.read(operand);
+      y_info.innerHTML = tools.format2(CPU.Y);
+      CPU.set_z(CPU.Y);
+      CPU.set_n(CPU.Y);
+      break;
     
     // SEI
     // I = 1
@@ -826,8 +832,17 @@ CPU.op = function(){
     case 0x95: // STA d,X
     case 0x99: // STA a,Y
     case 0x9d: // STA a,X
-    
       CPU.write(operand, CPU.A);
+      break;
+      
+    // STY
+    // M = Y
+    // Store Y in M
+    case 0x84: // STY d
+    case 0x8c: // STY a
+    case 0x94: // STY d,X
+      console.log(operand);
+      CPU.write(operand, CPU.Y);
       break;
       
     // TXS
@@ -933,6 +948,49 @@ CPU.draw_prg_rom_high_page = function(address){
   if(window["cpu_byte_" + address]){
     window["cpu_byte_" + address].classList.add("focus");
   }
+}
+
+// Internal RAM
+CPU.draw_internal_ram = function(address){
+
+  if(!debug) return;
+  
+  var html = "";
+  
+  // Default 
+  if(typeof address === "undefined"){
+    for(i = 0x0000; i < 0x0004; i++){
+      html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
+    }
+  }
+  
+  // Focus on one address
+  else {
+    var min = Math.max(0x0000, address - 1);
+    for(i = min; i < min + 5; i++){
+      if(i == CPU.S){
+        html += `<div class="focus S" id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
+      }
+      else if(i == address){
+        html += `<div class="focus" id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
+      }
+      else {
+        html += `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
+      }
+    }
+  }
+  internal_ram_info.innerHTML = html;
+}
+
+// PRG-RAM
+CPU.draw_prg_ram = function(address){
+  
+  var html = "";
+  for(i = 0x6000; i < 0x6005; i++){
+    html += `<div id=cpu_byte_${i}>${tools.format4(i)}: 00</div>`;
+  }
+  
+  prg_ram_info.innerHTML = html;
 }
 
 // Opcode helpers

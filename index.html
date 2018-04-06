@@ -20,7 +20,8 @@ canvas { vertical-align: middle; background: #000; }
 #io_info .focus { background: #ddd; }
 #prg_rom_low_page_info .focus { background: #def; }
 #prg_rom_high_page_info .focus { background: #def; }
-#internal_ram_info .focus { background: #fed; }
+#internal_ram_info .focus { background: #ddd; }
+#internal_ram_info .focus.S { background: #fed; }
 </style>
 
 <input type=file id=browse name=browse hidden>
@@ -173,7 +174,7 @@ canvas { vertical-align: middle; background: #000; }
         </table>
         <div style="margin-top:5px">
           <button onclick="CPU.op()">step</button>
-          <button onclick="CPU.play()">play</button> up to @ <input id=breakpoint value=c7af>
+          <button onclick="CPU.play()">play</button> up to @ <input id=breakpoint value=c7b9>
           <button onclick="clearInterval(CPU.loop)">pause</button>
           <button disabled>reset</button>
           <!--button disabled>fullscreen</button>-->
