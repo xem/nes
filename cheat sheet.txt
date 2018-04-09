@@ -295,10 +295,10 @@ The following table details how each opcode works:
 | CMP | CZ----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | Z,C,N = A-M           | Compare A and M. C: A >= M. Z: set if A = M. N: set if bit 7 of result is set.                                       |
 | CPX | CZ----N |    |    | 2  | 3  |     |     | 4  |     |     |     |     |     |     | Z,C,N = X-M           | Compare X and M. C: X >= M. Z: set if X = M. N: set if bit 7 of result is set.                                       |
 | CPY | CZ----N |    |    | 2  | 3  |     |     | 4  |     |     |     |     |     |     | Z,C,N = Y-M           | Compare Y and M. C: Y >= M. Z: set if Y = M. N: set if bit 7 of result is set.                                       |
-| DEC | -Z----N |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | M,Z,N = M-1           | Decrement M. Z: result = 0. N: set if bit 7 of result is set.                                                        |
-| DEX | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = X-1           | Decrement X. Z: result = 0. N: set if bit 7 of result is set.                                                        |
-| DEY | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = Y-1           | Decrement Y. Z: result = 0. N: set if bit 7 of result is set.                                                        |
-| EOR | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = A^M           | XOR A and M, bit by bit. Z: set if A=0. N: set if bit 7 of result is set.                                            |
+| DEC | -Z----N |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | M,Z,N = M-1           | Decrement M. Z: result = 0. N: set if bit 7 of result is set. (M = (M - 1) & 0xFF)                                   |
+| DEX | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = X-1           | Decrement X. Z: result = 0. N: set if bit 7 of result is set. (X = (X - 1) & 0xFF)                                   |
+| DEY | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = Y-1           | Decrement Y. Z: result = 0. N: set if bit 7 of result is set. (Y = (Y - 1) & 0xFF)                                   |
+| EOR | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = A^M           | XOR A and M, bit by bit. Z: set if A = 0. N: set if bit 7 of result is set.                                          |
 | INC | -Z----N |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | M,Z,N = M+1           | Increment M. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
 | INX | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = X+1           | Increment X. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
 | INY | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = Y+1           | Increment Y. Z: set if result = 0. N: set if bit 7 of result is set.                                                 |
@@ -341,28 +341,24 @@ The following table details how each opcode works:
 The opcodes operand, if explicit, is encoded in the byte (or pair of bytes) that follow the instruction in PRG-ROM.
 Many encodings of this operand exist, and are called addressing modes.
 
-+-------+-------------------+-------+--------------------------------------------------------------------+---------+
-| Abbr. | Name              | Bytes | Formula for the opcode's operand (**)                              | Cycles* |
-+-------+-------------------+-------+--------------------------------------------------------------------+---------+
-|       | Implicit          | 0     | No operand or implied operand. (ex: RTS, CLC)                      | 2-7     |
-| A     | Accumulator       | 0     | operand = A (A is implied. ex: LSR == LSR A)                       | 2       |
-| #i    | Immediate         | 1 (i) | operand = #i                                                       | 2       |
-| d     | Zero page         | 1 (d) | operand = d                                                        | 3-5     |
-| *+d   | relative          | 1 (d) | operand = PC + 2 + signed(d)                                       | 2*      |
-| a     | Absolute          | 2 (a) | operand = a                                                        | 3-6     |
-| (a)   | Indirect          | 2 (a) | operand = memory[a] + (memory[a + 1] << 8)                         | 5       | \
-| d,X   | Zero page indexed | 1 (d) | operand = (d + X) % 256                                            | 4-6     | |
-| d,Y   | Zero page indexed | 1 (d) | operand = (d + Y) % 256                                            | 4       | |
-| a,X   | Absolute indexed  | 2 (a) | operand = a + X                                                    | 4-7     | |_ indexed
-| a,Y   | Absolute indexed  | 2 (a) | operand = a + Y                                                    | 4-5     | |  operand
-| (d,X) | Indexed indirect  | 1 (d) | operand = memory[(d + X) % 256] + (memory[(d + X + 1) % 256] << 8) | 6       | |
-| (d),Y | Indirect indexed  | 1 (d) | operand = memory[d] + (memory[(d + 1) % 256] << 8) + Y             | 5-6     | |
-+-------+-------------------+----------------------------------------------------------------------------+---------+ /
++-------+-------------------+-------+----------------------------------------------------------+---------+
+| Abbr. | Name              | Bytes | Address of the opcode's operand                          | Cycles* |
++-------+-------------------+-------+----------------------------------------------------------+---------+
+|       | Implicit          | 0     | No operand or implied operand (ex: RTS, CLC)             | 2-7     |
+| A     | Accumulator       | 0     | Implied operand is A (ex: LSR == LSR A)                  | 2       |
+| #i    | Immediate         | 1     | PC + 1                                                   | 2       |
+| d     | Zero page         | 1     | d = memory[PC + 1]                                       | 3-5     |
+| *+d   | relative          | 1     | PC + 2 + signed(memory[PC + 1])                          | 2*      |
+| a     | Absolute          | 2     | a = (memory[PC + 2] << 8) + memory[PC + 1]               | 3-6     |
+| (a)   | Indirect          | 2     | (memory[a + 1] << 8) + memory[a]                         | 5       | \
+| d,X   | Zero page indexed | 1     | (memory[PC + 1] + X) % 256                               | 4-6     | |
+| d,Y   | Zero page indexed | 1     | (memory[PC + 1] + Y) % 256                               | 4       | |
+| a,X   | Absolute indexed  | 2     | a + X                                                    | 4-7     | |_ indexed
+| a,Y   | Absolute indexed  | 2     | a + Y                                                    | 4-5     | |  operand
+| (d,X) | Indexed indirect  | 1     | (memory[(d + X + 1) % 256] << 8) + memory[(d + X) % 256] | 6       | |
+| (d),Y | Indirect indexed  | 1     | (memory[(d + 1) % 256] << 8) + memory[d] + Y             | 5-6     | |
++-------+-------------------+------------------------------------------------------------------+---------+ /
 (*) The last column represents the cycles used for the whole opcode, not just to fetch the operand
-
-(**) #i = memory[PC + 1]
-     d = memory[PC + 1]
-     a = (memory[PC + 2] << 8) + memory[PC + 1]
      
 ---
 

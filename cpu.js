@@ -327,6 +327,7 @@ CPU.op = function(){
   // Addressing mode
   switch(opcode){
     
+    // #i
     // Immediate
     case 0x9:
     case 0xb:
@@ -353,7 +354,7 @@ CPU.op = function(){
     case 0xe9:
     case 0xeb:
       
-      // Operand: stored in PC + 1
+      // Operand address: PC + 1
       operand = CPU.PC + 1;
       
       // 2 CPU cycles
@@ -364,6 +365,7 @@ CPU.op = function(){
       
     break;
     
+    // d
     // Zero page
     case 0x04:
     case 0x05:
@@ -398,7 +400,7 @@ CPU.op = function(){
     case 0xe6:
     case 0xe7:
     
-      // Operand: memory[d]
+      // Operand address: memory[PC + 1]
       operand = CPU.read(CPU.PC + 1);
       
       // 2 CPU cycles
@@ -409,6 +411,7 @@ CPU.op = function(){
     
     break;
     
+    // *+d
     // Relative
     case 0x10:
     case 0x30:
@@ -419,7 +422,7 @@ CPU.op = function(){
     case 0xd0:
     case 0xf0:
     
-      // Operand: PC + 2 + signed immediate
+      // Operand address: PC + 2 + signed(memory[PC + 1])
       operand = CPU.PC + 2 + CPU.read(CPU.PC + 1, 1);
       
       // 2* CPU cycles
@@ -431,6 +434,7 @@ CPU.op = function(){
     
     break;
     
+    // a
     // Absolute
     case 0x0c:
     case 0x0d:
@@ -465,7 +469,7 @@ CPU.op = function(){
     case 0xee:
     case 0xef:
     
-      // Operand: a 2B immediate address in Big-Endian
+      // Operand: (memory[PC + 2] << 8) + memory[PC + 1]
       operand = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
       
       // 3-6 CPU cycles
@@ -477,16 +481,14 @@ CPU.op = function(){
     
     break;
     
+    // (a)
     // Indirect
     case 0x6c:
       
-      // Operand: operand = memory[memory[a]] (?)
-      // a is a 2B immediate address in Big-Endian
-      operand = CPU.read(
-        CPU.read(
-          (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1)
-        )
-      );
+      // Absolute address: a = (memory[PC + 2] << 8) + memory[PC + 1]
+      // Operand address: (memory[a + 1] << 8) + memory[a]
+      var a = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
+      operand = (CPU.read(a + 1) << 8) + CPU.read(a);
       
       // 5 CPU cycles
       cycles += 5;
@@ -496,7 +498,8 @@ CPU.op = function(){
       
     break;
     
-    // Zero page indexed (X)
+    // d,X
+    // Zero page indexed
     case 0x14:
     case 0x15:
     case 0x16:
@@ -526,8 +529,8 @@ CPU.op = function(){
     case 0xf6:
     case 0xf7:
     
-      // Operand: memory[(d + X) % 256]
-      operand = CPU.read((CPU.read(CPU.PC + 1) + CPU.X) % 256);
+      // Operand address: (memory[PC + 1] + X) % 256
+      operand = (CPU.read(CPU.PC + 1) + CPU.X) % 256;
       
       // 4-6 CPU cycles
       // TODO cycles
@@ -538,14 +541,15 @@ CPU.op = function(){
     
     break;
     
-    // Zero page indexed (Y)
+    // d,Y
+    // Zero page indexed
     case 0x96:
     case 0x97:
     case 0xb6:
     case 0xb7:
     
-      // Operand: memory[(d + Y) % 256]
-      operand = CPU.read((CPU.read(CPU.PC + 1) + CPU.Y) % 256);
+      // Operand address: (memory[PC + 1] + Y) % 256
+      operand = (CPU.read(CPU.PC + 1) + CPU.Y) % 256;
       
       // 4 CPU cycles
       cycles += 4;
@@ -555,7 +559,8 @@ CPU.op = function(){
     
     break;
     
-    // Absolute indexed (X)
+    // a,X
+    // Absolute indexed
     case 0x1c:
     case 0x1d:
     case 0x1e:
@@ -585,10 +590,10 @@ CPU.op = function(){
     case 0xfe:
     case 0xff:
     
-      // Operand: memory[a + X]     
-      operand = CPU.read(
-        (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1) + CPU.X
-      )
+      // Absolute address: a = (memory[PC + 2] << 8) + memory[PC + 1]
+      // Operand address: a + X 
+      var a = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
+      operand = a + CPU.X;
       
       // 4-7 CPU cycles
       // TODO
@@ -599,7 +604,8 @@ CPU.op = function(){
     
     break;
     
-    // Absolute indexed (Y)
+    // a,Y
+    // Absolute indexed
     case 0x19:
     case 0x1b:
     case 0x39:
@@ -621,10 +627,10 @@ CPU.op = function(){
     case 0xf9:
     case 0xfb:
     
-      // Operand: memory[a + Y]     
-      operand = CPU.read(
-        (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1) + CPU.Y
-      )
+      // Absolute address: a = (memory[PC + 2] << 8) + memory[PC + 1]
+      // Operand address: a + Y 
+      var a = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
+      operand = a + CPU.Y;
       
       // 4-5 CPU cycles
       // TODO
@@ -635,7 +641,8 @@ CPU.op = function(){
     
     break;
     
-    // Indexed indirect (X)
+    // (d,X)
+    // Indexed indirect
     case 0x01:
     case 0x03:
     case 0x21:
@@ -653,17 +660,10 @@ CPU.op = function(){
     case 0xe1:
     case 0xe3:
     
-      // Operand: memory[memory[(d + X) % 256] + memory[(d + X + 1) % 256] * 256]
-      // TODO: simplify
-      operand = CPU.read(
-        CPU.read(
-          (CPU.read(CPU.PC + 1) + CPU.X) % 256
-        )
-        +
-        CPU.read(
-          (CPU.read(CPU.PC + 1) + CPU.X + 1) % 256
-        ) * 256
-      );
+      // Zero page index: d = memory[PC + 1]
+      // Operand address: (memory[(d + X + 1) % 256] << 8) + memory[(d + X) % 256]
+      var d = CPU.read(CPU.PC + 1);
+      operand = (CPU.read((d + CPU.X + 1) % 256) << 8) + CPU.read((d + CPU.X) % 256);
       
       // 6 CPU cycles
       cycles += 6;
@@ -673,7 +673,8 @@ CPU.op = function(){
     
     break;
     
-    // Indirect indexed (Y)
+    // (d),Y
+    // Indirect indexed
     case 0x11:
     case 0x13:
     case 0x31:
@@ -691,18 +692,10 @@ CPU.op = function(){
     case 0xf1:
     case 0xf3:
     
-      // Operand: memory[memory[d] + memory[(d + 1) % 256] * 256 + Y]
-      operand = CPU.read(
-        CPU.read(
-          CPU.read(CPU.PC + 1)
-        )
-        +
-        CPU.read(
-          (CPU.read(CPU.PC + 1) + 1) % 256
-        ) * 256
-        +
-        CPU.Y
-      );
+      // Zero page index: d = memory[PC + 1]
+      // Operand: (memory[(d + 1) % 256] << 8) + memory[d] + Y
+      var d = CPU.read(CPU.PC + 1);
+      operand = (CPU.read((d + 1) % 256) << 8) + CPU.read(d) + CPU.Y;
       
       // 5-6 CPU cycles
       // TODO
@@ -758,12 +751,32 @@ CPU.op = function(){
         branch = 1;
       }
       break;
+      
+    // BNE
+    // Branch to relative address (PC += rel) if Z = 0.
+    case 0xd0: // BNE *+d
+      if(CPU.Z == 0){
+        CPU.PC = operand;
+        branch = 1;
+      }
+      break;
     
     // CLD
     // D = 0
     // Clear decimal flag
     case 0xD8:
       CPU.clear_d();
+      break;
+      
+    // DEY
+    // M,Z,N = Y - 1
+    // Decrement Y. Z: result = 0. N: set if bit 7 of result is set.
+    // (Y = (Y - 1) & 0xFF)
+    case 0x88: // DEY
+      CPU.Y = (CPU.Y - 1) & 0xFF;
+      y_info.innerHTML = tools.format2(CPU.Y);
+      CPU.set_z(CPU.Y);
+      CPU.set_n_if_bit_7(CPU.Y);
       break;
     
     // LDA
@@ -899,7 +912,7 @@ CPU.draw_prg_rom_low_page = function(address){
   
   // Focus on one address
   else {
-    var min = Math.max(0x8000, address - 3);
+    var min = Math.max(0x8000, address - 5);
     for(i = min; i < min + 10; i++){
       if(i == address){
         html += (gamepak.asm[0][i - 0x8000] = gamepak.asm[0][i - 0x8000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}; ${tools.asm(i)}</div>`);
@@ -933,7 +946,7 @@ CPU.draw_prg_rom_high_page = function(address){
   
   // Focus on one address
   else {
-    var min = Math.max(0xC000, address - 3);
+    var min = Math.max(0xC000, address - 5);
     for(i = min; i < min + 10; i++){
       if(i == address){
         html += (gamepak.asm[1][i - 0xC000] = gamepak.asm[1][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}; ${tools.asm(i)}</div>`);
