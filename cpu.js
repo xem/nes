@@ -254,7 +254,7 @@ CPU.read_write = function(address, signed, value){
       
       // Write (nothing is written in ROM but the mapper is notified)
       if(write){
-        Mapper.write(address, value);
+        //Mapper.write(address, value);
       }
       
       // Read
@@ -279,7 +279,7 @@ CPU.read_write = function(address, signed, value){
       
       // Write (nothing is written in ROM but the mapper is notified)
       if(write){
-        Mapper.write(address, value);
+        //Mapper.write(address, value);
       }
       
       // Read
@@ -718,7 +718,7 @@ CPU.op = function(){
   
   
   
-  //console.log("operand:" + operand)
+  if(debug)console.log("operand: 0x" + operand.toString(16))
   
   
   
@@ -760,6 +760,15 @@ CPU.op = function(){
         branch = 1;
       }
       break;
+      
+    // BPL
+    // Branch to relative address (PC += rel) if N = 0.
+    case 0x10: // BPL *+d
+      if(CPU.N == 0){
+        CPU.PC = operand;
+        branch = 1;
+      }
+      break;
     
     // CLD
     // D = 0
@@ -768,6 +777,20 @@ CPU.op = function(){
       CPU.clear_d();
       break;
       
+    // DEC
+    // M,Z,N = M-1
+    // Decrement M. Z: result = 0. N: set if bit 7 of result is set.
+    // (M = (M - 1) & 0xFF)
+    case 0xc6: // DEC d
+    case 0xce: // DEC a
+    case 0xd6: // DEC d,X
+    case 0xde: // DEC a,X
+      var value = (CPU.read(operand) - 1) & 0xFF;
+      CPU.write(operand, value);
+      CPU.set_z(value);
+      CPU.set_n_if_bit_7(value);
+      break;
+    
     // DEY
     // M,Z,N = Y - 1
     // Decrement Y. Z: result = 0. N: set if bit 7 of result is set.
@@ -1075,10 +1098,10 @@ CPU.set_n = function(value){
 
 CPU.set_n_if_bit_7 = function(value){
   
-  if((value >> 6) == 1){
+  if((value >> 7) == 1){
     
     // Set N
-    CPU.N = CPU.A >> 6;
+    CPU.N = value >> 7;
   
     // Update P
     CPU.P = (CPU.P | 0b10000000);
