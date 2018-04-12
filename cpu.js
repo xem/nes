@@ -250,15 +250,15 @@ CPU.read_write = function(address, signed, value){
     // TODO: bankswitch.
     // Default: bank 0
     
-    else if(address < 0xC000){
+    else {
       
       // Write (nothing is written in ROM but the mapper is notified)
       if(write){
-        //Mapper.write(address, value);
+        // Mapper.write(address, value);
       }
-      
+
       // Read
-      else {
+      if(address < 0xC000){
         
         // Signed
         if(signed){
@@ -270,20 +270,25 @@ CPU.read_write = function(address, signed, value){
           return gamepak.PRG_ROM[0][address - 0x8000];
         }
       }
-    }
     
-    // $C000-$FFFF: PRG-ROM, high page
-    // TODO: bankswitch.
-    // Default: bank 1
-    else {
-      
-      // Write (nothing is written in ROM but the mapper is notified)
-      if(write){
-        //Mapper.write(address, value);
-      }
-      
-      // Read
+      // $C000-$FFFF: PRG-ROM, high page
+      // TODO: bankswitch.
+      // Default: bank 1
       else {
+          
+        // Mirror of low page if there's only one bank
+        if(gamepak.PRG_ROM_banks == 1 && address > 0xBFFF){
+          
+          // Signed
+          if(signed){
+            return gamepak.PRG_ROM_signed[0][address - 0xC000];
+          }
+
+          // Unsigned
+          else {
+            return gamepak.PRG_ROM[0][address - 0xC000];
+          }      
+        }
         
         // Signed
         if(signed){
@@ -729,7 +734,7 @@ CPU.op = function(){
 
     // AND
     // A,Z,N = A&M
-    // Store in A the result of of M AND A. Z: set if A = 0. N: set if bit 7 of result is set.
+    // Store in A the result of of M AND A. Z: set if A = 0, cleared otherwise. N: bit 7 of result
     case 0x21: // AND (d,X)
     case 0x25: // AND d
     case 0x29: // AND #i
@@ -740,11 +745,11 @@ CPU.op = function(){
     case 0x3d: // AND a,X
       CPU.A = operand & CPU.A;
       CPU.set_z(CPU.A);
-      CPU.set_n_if_bit_7(CPU.A);
+      CPU.set_n(CPU.A);
       break;
       
     // BEQ
-    // Branch to relative address (PC += rel) if Z = 1. rel is signed.
+    // Branch to relative address (PC += rel) if Z = 1. rel is signed
     case 0xf0: // BEQ *+d
       if(CPU.Z == 1){
         CPU.PC = operand;
@@ -753,7 +758,7 @@ CPU.op = function(){
       break;
       
     // BNE
-    // Branch to relative address (PC += rel) if Z = 0.
+    // Branch to relative address (PC += rel) if Z = 0
     case 0xd0: // BNE *+d
       if(CPU.Z == 0){
         CPU.PC = operand;
@@ -762,7 +767,7 @@ CPU.op = function(){
       break;
       
     // BPL
-    // Branch to relative address (PC += rel) if N = 0.
+    // Branch to relative address (PC += rel) if N = 0
     case 0x10: // BPL *+d
       if(CPU.N == 0){
         CPU.PC = operand;
@@ -779,7 +784,7 @@ CPU.op = function(){
       
     // DEC
     // M,Z,N = M-1
-    // Decrement M. Z: result = 0. N: set if bit 7 of result is set.
+    // Decrement M. Z: result = 0. N: bit 7 of result
     // (M = (M - 1) & 0xFF)
     case 0xc6: // DEC d
     case 0xce: // DEC a
@@ -788,23 +793,36 @@ CPU.op = function(){
       var value = (CPU.read(operand) - 1) & 0xFF;
       CPU.write(operand, value);
       CPU.set_z(value);
-      CPU.set_n_if_bit_7(value);
+      CPU.set_n(value);
       break;
     
     // DEY
     // M,Z,N = Y - 1
-    // Decrement Y. Z: result = 0. N: set if bit 7 of result is set.
+    // Decrement Y. Z: result = 0. N: bit 7 of result
     // (Y = (Y - 1) & 0xFF)
     case 0x88: // DEY
       CPU.Y = (CPU.Y - 1) & 0xFF;
       y_info.innerHTML = tools.format2(CPU.Y);
       CPU.set_z(CPU.Y);
-      CPU.set_n_if_bit_7(CPU.Y);
+      CPU.set_n(CPU.Y);
+      break;
+      
+    // JSR
+    // Jump to subroutine: push PC - 1 on the stack and set PC to the address in operand
+    case 0x20: // JSR a
+      CPU.write(CPU.S + 0x100, (CPU.PC - 1) >> 8);
+      CPU.S = (CPU.S - 1) & 0xFF;
+      CPU.write(CPU.S + 0x100, (CPU.PC - 1) & 0xFF);
+      CPU.S = (CPU.S - 1) & 0xFF;
+      CPU.PC = operand;
+      cycles += 2;
+      s_info.innerHTML = tools.format2(CPU.S);
+      branch = 1;
       break;
     
     // LDA
     // A,Z,N = M
-    // Load M in A. Z: set if A = 0. N: bit 7 of A
+    // Load M in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A
     case 0xa1: // LDA (d,X)
     case 0xa5: // LDA d
     case 0xa9: // LDA #i
@@ -825,7 +843,7 @@ CPU.op = function(){
       
     // LDX
     // X,Z,N = M
-    // Load M in X. Z: set if X = 0. N: bit 7 of X
+    // Load M in X. Z: set if X = 0, cleared otherwise. N: bit 7 of X
     case 0xa2: // LDX #i
     case 0xa6: // LDX d
     case 0xae: // LDX a
@@ -971,11 +989,24 @@ CPU.draw_prg_rom_high_page = function(address){
   else {
     var min = Math.max(0xC000, address - 5);
     for(i = min; i < min + 10; i++){
-      if(i == address){
-        html += (gamepak.asm[1][i - 0xC000] = gamepak.asm[1][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}; ${tools.asm(i)}</div>`);
+      
+      // Mirror of first PRG-ROM bank if there's just one bank
+      if(gamepak.PRG_ROM_banks === 1){
+        if(i == address){
+          html += (gamepak.asm[0][i - 0xC000] = gamepak.asm[0][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}; ${tools.asm(i)}</div>`);
+        }
+        else {
+          html += (gamepak.asm[0][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`);
+        }
       }
+      
       else {
-        html += (gamepak.asm[1][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`);
+        if(i == address){
+          html += (gamepak.asm[1][i - 0xC000] = gamepak.asm[1][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}; ${tools.asm(i)}</div>`);
+        }
+        else {
+          html += (gamepak.asm[1][i - 0xC000] || `<div id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`);
+        }
       }
     }
   }
@@ -1082,7 +1113,7 @@ CPU.set_z = function(value){
 CPU.set_n = function(value){
   
   // Set N
-  CPU.N = CPU.A >> 7;
+  CPU.N = value >> 7;
   
   // Update P
   if(CPU.N === 1){
@@ -1094,21 +1125,6 @@ CPU.set_n = function(value){
   
   // UI
   n_info.innerHTML = CPU.N;
-}
-
-CPU.set_n_if_bit_7 = function(value){
-  
-  if((value >> 7) == 1){
-    
-    // Set N
-    CPU.N = value >> 7;
-  
-    // Update P
-    CPU.P = (CPU.P | 0b10000000);
-  
-    // UI
-    n_info.innerHTML = CPU.N;
-  }
 }
 
 // Play until PC reaches the value in the breakpoint input (if any)

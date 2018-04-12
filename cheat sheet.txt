@@ -137,11 +137,8 @@ Ex: NMI vector = (memory[$FFFB] << 8) + memory[$FFFA]
 
 > PRG-ROM mirroring
 
-Some ROMs only use 16KB of PRG-ROM (Ex: Donkey Kong):
-- The header indicates 2 PRG-ROM banks.
-- The first bank is filled with 0 (except for the last 48B, seemingly garbage data).
-- The next 16KB contain the game's code.
-In that case, the CPU memory mirrors the second bank ($C000-$FFFF) into the first bank ($8000-$BFFF).
+Some ROM headers declare only 16KB of PRG-ROM. Ex: Donkey Kong (Japan).
+In that case, the CPU memory mirrors the PRG-ROM bank at addresses [$8000-$BFFF] and [$C000-$FFFF].
 
 
 III. CPU
@@ -210,7 +207,8 @@ Even during bankswitches, the vector table will always be available $FFFA-$FFFF.
 | S    | 1B   | $FD            | S -= 3         | Stack Pointer (*)                     |
 | P    | 1B   | $34            | P = P OR $04   | Processor Status Register (see Flags) |
 +------+------+----------------+----------------+---------------------------------------+
-(*) The Stack Pointer decrements on push and increments on pull.
+(*) The Stack Pointer (S) decrements on push and increments on pull.
+It represents a memory address between $1000 and $1FFF (always add $100 to S during pushs and pops).
 Contrary to many other systems, it points to the first FREE byte on the stack.
 It doesn't have any overflow/underflow protection (it just wraps between $00 and $FF).
 
@@ -277,7 +275,7 @@ The following table details how each opcode works:
 +-----+---------+----+----+----+----+-----+-----+----+-----+-----+-----+-----+-----+-----+-----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------+
 | ADC | CZ---VN |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,C,N = A+M+C       | Add M, A and C. C: set if bit 7 of result overflows, cleared otherwise. Z: set if A = 0, cleared otherwise. N: bit 7 of result.                     |
 | AND | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = A&M           | Store in A the result of of M AND A. Z: set if A = 0, cleared otherwise. N: bit 7 of result.                                                        |
-| ASL | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | (A|M),Z,C,N = M*2     | Left shift A or M after putting bit 7 in C. Bit 0 = 0. Z: set if A = 0, cleared otherwise. N: bit 7 of result.                                      |
+| ASL | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | (A|M),Z,C,N = M*2     | Left shift operand after putting bit 7 in C. Bit 0 = 0. Z: set if A = 0, cleared otherwise. N: bit 7 of result.                                      |
 | BCC | ------- |    |    |    |    |     |     |    |     |     | 2*  |     |     |     |                       | Branch to relative address (PC += rel) if C = 0.                                                                                                    |
 | BCS | ------- |    |    |    |    |     |     |    |     |     | 2*  |     |     |     |                       | Branch to relative address (PC += rel) if C = 1.                                                                                                    |
 | BEQ | ------- |    |    |    |    |     |     |    |     |     | 2*  |     |     |     |                       | Branch to relative address (PC += rel) if Z = 1.                                                                                                    |
@@ -303,21 +301,21 @@ The following table details how each opcode works:
 | INX | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = X+1           | Increment X (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                                     |
 | INY | -Z----N | 2  |    |    |    |     |     |    |     |     |     |     |     |     | M,Z,N = Y+1           | Increment Y (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                                     |
 | JMP | ------- |    |    |    |    |     |     | 3  |     |     |     | 5   |     |     |                       | Jump (set PC) to the address in the operand. (*).                                                                                                   |
-| JSR | ------- |    |    |    |    |     |     | 6  |     |     |     |     |     |     |                       | Jump to subroutine: push PC - 1 on the stack and set PC to the address in operand.                                                                  |
+| JSR | ------- |    |    |    |    |     |     | 6  |     |     |     |     |     |     |                       | Jump to subroutine: push PC - 1 on the stack (the highest byte, then the lowest byte) and set PC to the address in operand.                                                                  |
 | LDA | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = M             | Load M in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A.                                                                                     |
 | LDX | -Z----N |    |    | 2  | 3  |     | 4   | 4  |     | 4+  |     |     |     |     | X,Z,N = M             | Load M in X. Z: set if X = 0, cleared otherwise. N: bit 7 of X.                                                                                     |
 | LDY | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  |     |     |     |     |     | Y,Z,N = M             | Load M in Y. Z: set if Y = 0, cleared otherwise. N: bit 7 of Y.                                                                                     |
-| LSR | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | (A|M),C,Z,N = (A|M)/2 | Right shift A or M after putting bit 0 in C. Bit 7 = 0. Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                |
+| LSR | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     | (A|M),C,Z,N = (A|M)/2 | Right shift operand after putting bit 0 in C. Bit 7 = 0. Z: set if result = 0, cleared otherwise. N: bit 7 of result.                               |
 | NOP | ------- | 2  |    |    |    |     |     |    |     |     |     |     |     |     |                       | No operation.                                                                                                                                       |
 | ORA | -Z----N |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,N = A|M           | OR A and M, bit by bit. Z: set if A = 0, cleared otherwise. N: set if bit 7 is set.                                                                 |
 | PHA | ------- | 3  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Push A on the stack.                                                                                                                                |
 | PHP | ------- | 3  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Push P (the status flags) on the stack.                                                                                                             |
 | PLA | -Z----N | 4  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Pull A from the stack. Z: set if A = 0, cleared otherwise. N: bit 7 of A.                                                                           |
 | PLP | CZIDBVN | 4  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Pull P from the stack, and update all the flags with the values pulled.                                                                             |
-| ROL | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     |                       | Save C in a var. Put bit 7 of A or M in C. Left shift A or M. Bit 0 = saved C.                                                                      |
-| ROR | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     |                       | Save C in a var. Put bit O of A or M in C. Right shift A or M. Bit 7 = saved C.                                                                     |
+| ROL | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     |                       | Save C in a var. Put bit 7 of operand in C. Left shift operand. Bit 0 = saved C.                                                                    |
+| ROR | CZ----N |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |     |     |                       | Save C in a var. Put bit O of operand in C. Right shift operand. Bit 7 = saved C.                                                                   |
 | RTI | CZIDBVN | 6  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Return from interrupt: pull P (the flags) and PC from the stack.                                                                                    |
-| RTS | ------- | 6  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Return from subroutine: pull PC - 1 from the stack (see JSR).                                                                                       |
+| RTS | ------- | 6  |    |    |    |     |     |    |     |     |     |     |     |     |                       | Return from subroutine: pull PC - 1 from the stack (the lowest byte, then the highest byte, see JSR).                                                                                       |
 | SBC | CZ---VN |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6   | 5+  | A,Z,C,N = A-M-!C      | Sub M and NOT C to A. C: 0 if bit 7 overflows, 1 otherwise. Z: 1 if A = 0, 0 otherwise. V: 1 if sign bit is wrong, 0 otherwise. N: bit 7 of result. |
 | SEC | C------ | 2  |    |    |    |     |     |    |     |     |     |     |     |     | C = 1                 | Set carry flag.                                                                                                                                     |
 | SED | ---D--- | 2  |    |    |    |     |     |    |     |     |     |     |     |     | D = 1                 | Set decimal flag.                                                                                                                                   |

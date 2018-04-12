@@ -170,11 +170,12 @@ canvas { vertical-align: middle; background: #000; }
     <td width=260>
       <div>
         <table border>
-          <tr><td><canvas id=screen_canvas width=256 height=242></canvas>
+          <!--tr><td><canvas id=screen_canvas width=256 height=242></canvas-->
+          <tr><td><canvas id=screen_canvas width=341 height=312 style="width:256px;height:242px"></canvas>
         </table>
         <div style="margin-top:5px">
           <button onclick="CPU.op()">step</button>
-          <button onclick="CPU.play()">play</button> up to @ <input id=breakpoint value=c7af> <!-- BREAKPOINT -->
+          <button onclick="CPU.play()">play</button> up to @ <input id=breakpoint value=c801> <!-- BREAKPOINT -->
           <button onclick="clearInterval(CPU.loop)">pause</button>
           <button onclick="for(x10=10;x10--;)CPU.op()">x10</button>
           <!--button disabled>reset</button-->
@@ -276,7 +277,7 @@ browse.onchange = function(e){
 
 // Auto demo: load "DK (U).nes" and use it
 onload = function(){
-  filename = "DK (U).nes";
+  filename = "DK (J).nes";
   file = new XMLHttpRequest;
   file.open('GET', filename);
   file.responseType = 'arraybuffer';
