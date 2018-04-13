@@ -1,0 +1,202 @@
+;==========================================================================================
+; Game reset
+;
+; Performs initialization after power-up or reset.
+;
+;==========================================================================================
+;Disable interrupts
+C79E : 78			sei			;
+;Clear the CPU's decimal flag 
+C79F : D8			cld			;
+;Reset PPU control (including the disabling of VBL interrupts)
+C7A0 : A9 10		lda	#$10		;
+C7A2 : 8D 00 20		sta	$2000		;
+;Init stack pointer
+C7A5 : A2 FF		ldx	#$FF		;
+C7A7 : 9A			txs				;
+;Wait for VBL, looping until it happens
+C7A8 : AD 02 20		lda	$2002		;
+C7AB : 29 80		and	#$80		;
+C7AD : F0 F9		beq	$C7A8		;
+;Clear RAM ($0000-$07FF)
+;USe $00/$01 as a pointer, iterate over every RAM address using the pointer and write a #00 on each address
+C7AF : A0 07		ldy	#$07		;
+C7B1 : 84 01		sty	$01			;
+C7B3 : A0 00		ldy	#$00		;
+C7B5 : 84 00		sty	$00			;
+C7B7 : A9 00		lda	#$00		;
+C7B9 : 91 00		sta	($00),y		;
+C7BB : 88			dey			;
+C7BC : D0 FB		bne	$C7B9		;
+C7BE : C6 01		dec	$01		;
+C7C0 : 10 F7		bpl	$C7B9		;
+;Init PPU, clear all graphics
+C7C2 : 20 E7 C7		jsr	$C7E7		;
+|
+|
+|   ;==========================================================================================
+|   ;Init PPU and clear all graphics
+|   ;==========================================================================================
+|   ;Set PPU hi addr for BKG pattern table = $1000
+->  C7E7 : A9 10		lda	#$10		; 
+    C7E9 : 8D 00 20		sta	$2000		;
+    ;Store a local copy of $2000 register in $10
+    C7EC : 85 10		sta	$10		;
+    ;Set sprite clipping off, bkg clipping off, store local copy of $2001 register in $11			
+    C7EE : A9 06		lda	#$06		;
+    C7F0 : 8D 01 20		sta	$2001		;
+    C7F3 : 85 11		sta	$11		;
+    ;Set scroll registers to no scroll, store local copies of scroll registers in $12,$13			
+    C7F5 : A9 00		lda	#$00		; 
+    C7F7 : 8D 05 20		sta	$2005		;
+    C7FA : 85 12		sta	$12		;			
+    ;There are two scroll registers accessed sequentially through the same address ($2005)
+    ;Read PPU documentation for details
+    C7FC : 8D 05 20		sta	$2005		;
+    C7FF : 85 13		sta	$13		;
+    ;Reset all sprites			
+    C801 : 20 AA CB		jsr	$CBAA		;
+    |
+    |
+    |   ;==========================================================================================
+    |   ; Reset all sprites
+    |   ;==========================================================================================
+    ->  ;Set up sprite index to #00
+        CBAA : A9 00		lda	#$00		;	
+        CBAC : 85 04		sta	$04		;
+        ;Set # of sprites to reset to #FF (all sprites)
+        CBAE : A9 FF		lda	#$FF		;
+        ;Reset sprites
+        CBB0 : 4C A1 F0		jmp	$F0A1		;
+        |
+        |
+        |
+        |   ;==========================================================================================
+        |   ; Main sprite handler
+        |   ;==========================================================================================
+        |   ;Multiple entry points
+        |   ;The three first direct entry points store the sprite addr low byte from A into the $04 pointer index
+        |   ;The fourth direct entry point stores the row*col sprite size into $03, used for the reset sprite routine
+        |     F08F : 85 04		sta	$04		;
+        |     F091 : A9 00		lda	#$00		;
+        |     F093 : F0 10		beq	$F0A5		;
+        |     F095 : 85 04		sta	$04		;
+        |     F097 : A9 01		lda	#$01		;
+        |     F099 : D0 0A		bne	$F0A5		;
+        |     F09B : 85 04		sta	$04		;
+        |     F09D : A9 04		lda	#$04		;
+        |     F09F : D0 04		bne	$F0A5		;
+        |
+        ->  F0A1 : 85 03		sta	$03		;	
+            F0A3 : A9 0F		lda	#$0F	;	
+            F0A5 : 48			pha			;
+            ;Save operation code into auxiliary $0F
+            F0A6 : 85 0F		sta	$0F		;	
+            ;---------------------------------------------------------------------------------------------
+            ;Save X,Y, $00, $05-$09 in stack
+            F0A8 : 8A			txa			;
+            F0A9 : 48			pha			;
+>>>>>>>>>>> F0AA : 98			tya			;
+            F0AB : 48			pha			;
+            F0AC : A5 00		lda	$00		;
+            F0AE : 48			pha			;
+            F0AF : A5 05		lda	$05		;
+            F0B1 : 48			pha			;
+            F0B2 : A5 06		lda	$06		;
+            F0B4 : 48			pha			;
+            F0B5 : A5 07		lda	$07		;
+            F0B7 : 48			pha			;
+            F0B8 : A5 08		lda	$08		;
+            F0BA : 48			pha			;
+            F0BB : A5 09		lda	$09		;
+            F0BD : 48			pha			;
+            ;---------------------------------------------------------------------------------------------
+            ;Set up $04,05 pointer hi to #02 (pointing to local sprite area $02xx)
+            F0BE : A9 02		lda	#$02	;
+            F0C0 : 85 05		sta	$05		;
+            ;Check operation code
+            ;If it's #04, perform the sprite reset + copy attributes operation
+            F0C2 : A5 0F		lda	$0F		;	
+            F0C4 : C9 04		cmp	#$04	;
+            F0C6 : F0 36		beq	$F0FE	;
+            ;Store low nibble of $03 into $07
+            F0C8 : A9 0F		lda	#$0F	;	
+            F0CA : 25 03		and	$03		;
+            F0CC : 85 07		sta	$07		;
+            ;Store high nibble of $03 into $06
+            F0CE : A5 03		lda	$03		;
+            F0D0 : 4A			lsr	a		;
+            F0D1 : 4A			lsr	a		;
+            F0D2 : 4A			lsr	a		;
+            F0D3 : 4A			lsr	a		;
+            F0D4 : 85 06		sta	$06		;
+            ;Multiply loop (performs $06 * $07) 
+            F0D6 : AA			tax			;
+            F0D7 : A9 00		lda	#$00	;
+            F0D9 : 18			clc			;
+            F0DA : 65 07		adc	$07		;
+            F0DC : CA			dex			;
+            F0DD : D0 FB		bne	$F0DA	;	
+            ;Stores the multiplication into $08
+            F0DF : 85 08		sta	$08		;
+            ;Branch on value of $0F
+            F0E1 : A5 0F		lda	$0F		;
+            F0E3 : D0 06		bne	$F0EB	;
+            ;$0F == #00
+            F0E5 : 20 2D F1		jsr	$F12D	;	Load sprite's tile, clear flipping
+            F0E8 : 4C F8 F0		jmp	$F0F8	;	Set up hor/vert. position
+            ;$0F != #00, #04
+            F0EB : C9 01		cmp	#$01	;
+            F0ED : F0 06		beq	$F0F5	;
+            ;$0F != #00, #01, #04
+            F0EF : 20 A4 F1		jsr	$F1A4	;	Inactivate sprite
+            F0F2 : 4C 01 F1		jmp	$F101	;	Exit point
+            ;$0F = #01
+            F0F5 : 20 70 F1		jsr	$F170	;	Activate horizontal flipping
+            F0F8 : 20 48 F1		jsr	$F148	;	Hor/vert. position set-up
+            F0FB : 4C 01 F1		jmp	$F101	;	Exit point
+            ;$0F = #04
+            F0FE : 20 19 F1		jsr	$F119	;	Sprite reset, copy attributes	
+            ;---------------------------------------------------------------------------------------------
+            ;Exit point - restore X,Y, $00, $05-$09		
+            F101 : 68			pla			;
+            F102 : 85 09		sta	$09		;
+            F104 : 68			pla			;
+            F105 : 85 08		sta	$08		;	
+            F107 : 68			pla			;
+            F108 : 85 07		sta	$07		;	
+            F10A : 68			pla			;
+            F10B : 85 06		sta	$06		;	
+            F10D : 68			pla			;
+            F10E : 85 05		sta	$05		;	
+            F110 : 68			pla			;
+            F111 : 85 00		sta	$00		;	
+            F113 : 68			pla			;
+            F114 : A8			tay			;	
+            F115 : 68			pla			;
+            F116 : AA			tax			;	
+            F117 : 68			pla			;	
+            F118 : 60			rts			;
+  
+  ;Disable BKG display and clear background layer
+  C804 : 4C B3 CB		jmp	$CBB3		;
+
+
+;On the title screen, there is a small menu that allows a player to select the game type (1 or 2 players, Game A or B).
+;There's a small asterisk to the left of the four menu entries, denoting which one is the currently selected option. This is the "game select sprite".
+;Set game-select sprite's initial vertical position 
+C7C5 : A9 7F		lda	#$7F		;	
+C7C7 : 8D 11 05		sta	$0511		;
+;Set initial game state
+C7CA : A9 18		lda	#$18		;	
+C7CC : 85 51		sta	$51		;	Set number of players = 1
+C7CE : A9 01		lda	#$01		;	
+C7D0 : 85 4E		sta	$4E		;	Set non-gameplay mode = 1
+C7D2 : 85 55		sta	$55		;	Set player lives = 1
+C7D4 : A9 00		lda	#$00		;	
+C7D6 : 85 4F		sta	$4F		;	Set gameplay frozen = 1
+;Re-enable VBL interrupts and fall through to the endless loop
+C7D8 : A5 10		lda	$10		;	
+C7DA : 49 80		eor	#$80		;
+C7DC : 8D 00 20		sta	$2000		;
+C7DF : 85 10		sta	$10		;

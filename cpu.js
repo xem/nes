@@ -807,6 +807,14 @@ CPU.op = function(){
       CPU.set_n(CPU.Y);
       break;
       
+    // JMP
+    // Jump (set PC) to the address in the operand.
+    case 0x4c: // JMP a
+    case 0x6c: // JMP (a)
+      CPU.PC = operand;
+      branch = 1;
+      break;
+      
     // JSR
     // Jump to subroutine: push PC - 1 on the stack and set PC to the address in operand
     case 0x20: // JSR a
@@ -814,6 +822,7 @@ CPU.op = function(){
       CPU.S = (CPU.S - 1) & 0xFF;
       CPU.write(CPU.S + 0x100, (CPU.PC - 1) & 0xFF);
       CPU.S = (CPU.S - 1) & 0xFF;
+      CPU.draw_internal_ram(CPU.S + 0x100);
       CPU.PC = operand;
       cycles += 2;
       s_info.innerHTML = tools.format2(CPU.S);
@@ -868,6 +877,16 @@ CPU.op = function(){
       CPU.set_z(CPU.Y);
       CPU.set_n(CPU.Y);
       break;
+      
+    // PHA
+    // Push A on the stack
+    case 0x48: // PHA
+      CPU.write(CPU.S + 0x100, CPU.A);
+      CPU.S = (CPU.S - 1) & 0xFF;
+      CPU.draw_internal_ram(CPU.S + 0x100);
+      s_info.innerHTML = tools.format2(CPU.S);
+      CPU.cycles++;
+      break;
     
     // SEI
     // I = 1
@@ -895,10 +914,29 @@ CPU.op = function(){
     case 0x84: // STY d
     case 0x8c: // STY a
     case 0x94: // STY d,X
-      console.log(operand);
       CPU.write(operand, CPU.Y);
       break;
       
+    // TXA
+    // A = X
+    // Copy X in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A
+    case 0x8a: // TXA
+      CPU.A = CPU.X;
+      CPU.set_z(CPU.A);
+      CPU.set_n(CPU.A);
+      a_info.innerHTML = tools.format2(CPU.A);
+      break;
+    
+    // TYA
+    // A = Y
+    // Copy Y in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A
+    case 0x98: // TYA
+      CPU.A = CPU.Y;
+      CPU.set_z(CPU.A);
+      CPU.set_n(CPU.A);
+      a_info.innerHTML = tools.format2(CPU.A);
+      break;
+    
     // TXS
     // S = X
     // Copy X in S
@@ -1035,7 +1073,7 @@ CPU.draw_internal_ram = function(address){
   else {
     var min = Math.max(0x0000, address - 1);
     for(i = min; i < min + 5; i++){
-      if(i == CPU.S){
+      if(i == CPU.S + 0x100){
         html += `<div class="focus S" id=cpu_byte_${i}>${tools.format4(i)}: ${tools.format2(CPU.read(i))}</div>`;
       }
       else if(i == address){
