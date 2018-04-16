@@ -734,7 +734,7 @@ CPU.op = function(){
 
     // AND
     // A,Z,N = A&M
-    // Store in A the result of of M AND A. Z: set if A = 0, cleared otherwise. N: bit 7 of result
+    // Store in A the result of M AND A. Z: set if A = 0, cleared otherwise. N: bit 7 of result
     case 0x21: // AND (d,X)
     case 0x25: // AND d
     case 0x29: // AND #i
@@ -743,7 +743,8 @@ CPU.op = function(){
     case 0x35: // AND d,X
     case 0x39: // AND a,Y
     case 0x3d: // AND a,X
-      CPU.A = operand & CPU.A;
+      CPU.A = CPU.read(operand) & CPU.A;
+      a_info.innerHTML = tools.format2(CPU.A);
       CPU.set_z(CPU.A);
       CPU.set_n(CPU.A);
       break;
@@ -780,6 +781,47 @@ CPU.op = function(){
     // Clear decimal flag
     case 0xD8:
       CPU.clear_d();
+      break;
+      
+    // CMP
+    // Z,C,N = A-M
+    // Compare A and M. C: set if A >= M, cleared otherwise. Z: set if A = M, cleared otherwise. N: bit 7 of result
+    case 0xc1: // CMP (d,X)
+    case 0xc5: // CMP d
+    case 0xc9: // CMP #i
+    case 0xcd: // CMP a
+    case 0xd1: // CMP (d),Y
+    case 0xd5: // CMP d,X
+    case 0xd9: // CMP a,Y
+    case 0xdd: // CMP a,X
+      var value = CPU.A - CPU.read(operand);
+      CPU.set_c_borrow(value);
+      CPU.set_z(value);
+      CPU.set_n(value);
+      break;
+      
+    // CPX
+    // Z,C,N = X-M
+    // Compare X and M. C: set if X >= M, cleared otherwise. Z: set if X = M, cleared otherwise. N: bit 7 of X - M
+    case 0xe0: // CPX #i 
+    case 0xe4: // CPX d
+    case 0xec: // CPX a
+      var value = CPU.X - CPU.read(operand);
+      CPU.set_c_borrow(value);
+      CPU.set_z(value);
+      CPU.set_n(value);
+      break;
+
+    // CPY
+    // Z,C,N = Y-M
+    // Compare Y and M. C: set if Y >= M, cleared otherwise. Z: set if Y = M, cleared otherwise. N: bit 7 of Y - M
+    case 0xc0: // CPY #i
+    case 0xc4: // CPY d
+    case 0xcc: // CPY a
+      var value = CPU.Y - CPU.read(operand);
+      CPU.set_c_borrow(value);
+      CPU.set_z(value);
+      CPU.set_n(value);
       break;
       
     // DEC
@@ -840,11 +882,7 @@ CPU.op = function(){
     case 0xb5: // LDA d,X
     case 0xb9: // LDA a,Y
     case 0xbd: // LDA a,X
-      //console.log(operand.toString(16));
-      //console.log(CPU.read(operand));
       CPU.A = CPU.read(operand);
-      //console.log(CPU.A);
-      //console.log(tools.format2(CPU.A));
       a_info.innerHTML = tools.format2(CPU.A);
       CPU.set_z(CPU.A);
       CPU.set_n(CPU.A);
@@ -876,6 +914,31 @@ CPU.op = function(){
       y_info.innerHTML = tools.format2(CPU.Y);
       CPU.set_z(CPU.Y);
       CPU.set_n(CPU.Y);
+      break;
+      
+    // LSR
+    // A,C,Z,N = A >> 1
+    // Right shift operand after putting bit 0 in C. Bit 7 = 0. Z: set if result = 0, cleared otherwise. N: bit 7 of result
+    case 0x4a: // LSR = LSR A
+      var value = CPU.A;
+      value = ((value & 1) << 8) | (value >> 1);
+      CPU.set_z(value);
+      CPU.set_n(value);
+      CPU.set_c_carry(value);
+      // value &= 0xFF;
+      break;
+    
+    // M,C,Z,N = M >> 1
+    case 0x46: // LSR d
+    case 0x4e: // LSR a
+    case 0x56: // LSR d,X
+    case 0x5e: // LSR a,X
+      var value = CPU.read(operand);
+      value = ((value & 1) << 8) | (value >> 1);
+      CPU.set_z(value);
+      CPU.set_n(value);
+      CPU.set_c_carry(value);
+      // value &= 0xFF;
       break;
       
     // PHA
@@ -944,6 +1007,9 @@ CPU.op = function(){
       CPU.S = CPU.X;
       s_info.innerHTML = tools.format2(CPU.S);
       break;
+      
+    default:
+      alert("unimplemented " + tools.format2(opcode));
   }
   
   // Update PC
@@ -1163,6 +1229,40 @@ CPU.set_n = function(value){
   
   // UI
   n_info.innerHTML = CPU.N;
+}
+
+CPU.set_c_borrow = function(value){
+  
+  // Set C
+  CPU.C = value >= 0 ? 1 : 0;
+  
+  // Update P
+  if(CPU.C === 1){
+    CPU.P = (CPU.P | 0b00000001);
+  }
+  else {
+    CPU.P = (CPU.P & 0b11111110);
+  }
+  
+  // UI
+  c_info.innerHTML = CPU.C;
+}
+
+CPU.set_c_carry = function(value){
+  
+  // Set C
+  CPU.C = value >= 0 ? 0 : 1;
+  
+  // Update P
+  if(CPU.C === 1){
+    CPU.P = (CPU.P | 0b00000001);
+  }
+  else {
+    CPU.P = (CPU.P & 0b11111110);
+  }
+  
+  // UI
+  c_info.innerHTML = CPU.C;
 }
 
 // Play until PC reaches the value in the breakpoint input (if any)

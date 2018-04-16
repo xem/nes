@@ -96,7 +96,7 @@ C7C2 : 20 E7 C7		jsr	$C7E7		;
             ;Save X,Y, $00, $05-$09 in stack
             F0A8 : 8A			txa			;
             F0A9 : 48			pha			;
->>>>>>>>>>> F0AA : 98			tya			;
+            F0AA : 98			tya			;
             F0AB : 48			pha			;
             F0AC : A5 00		lda	$00		;
             F0AE : 48			pha			;
@@ -125,7 +125,7 @@ C7C2 : 20 E7 C7		jsr	$C7E7		;
             F0CC : 85 07		sta	$07		;
             ;Store high nibble of $03 into $06
             F0CE : A5 03		lda	$03		;
-            F0D0 : 4A			lsr	a		;
+>>>>>>      F0D0 : 4A			lsr	a		;
             F0D1 : 4A			lsr	a		;
             F0D2 : 4A			lsr	a		;
             F0D3 : 4A			lsr	a		;
