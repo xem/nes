@@ -125,7 +125,7 @@ C7C2 : 20 E7 C7		jsr	$C7E7		;
             F0CC : 85 07		sta	$07		;
             ;Store high nibble of $03 into $06
             F0CE : A5 03		lda	$03		;
->>>>>>      F0D0 : 4A			lsr	a		;
+            F0D0 : 4A			lsr	a		;
             F0D1 : 4A			lsr	a		;
             F0D2 : 4A			lsr	a		;
             F0D3 : 4A			lsr	a		;
@@ -133,24 +133,52 @@ C7C2 : 20 E7 C7		jsr	$C7E7		;
             ;Multiply loop (performs $06 * $07) 
             F0D6 : AA			tax			;
             F0D7 : A9 00		lda	#$00	;
-            F0D9 : 18			clc			;
-            F0DA : 65 07		adc	$07		;
-            F0DC : CA			dex			;
-            F0DD : D0 FB		bne	$F0DA	;	
+            F0D9 : 18			clc			;            
+            F0DA : 65 07		adc	$07		;         <-|
+            F0DC : CA			dex			;               |
+            F0DD : D0 FB		bne	$F0DA	;	        --|
             ;Stores the multiplication into $08
             F0DF : 85 08		sta	$08		;
             ;Branch on value of $0F
             F0E1 : A5 0F		lda	$0F		;
             F0E3 : D0 06		bne	$F0EB	;
-            ;$0F == #00
-            F0E5 : 20 2D F1		jsr	$F12D	;	Load sprite's tile, clear flipping
-            F0E8 : 4C F8 F0		jmp	$F0F8	;	Set up hor/vert. position
-            ;$0F != #00, #04
+            |   ;$0F == #00
+            |   F0E5 : 20 2D F1		jsr	$F12D	;	Load sprite's tile, clear flipping
+            |   F0E8 : 4C F8 F0		jmp	$F0F8	;	Set up hor/vert. position
+            v   ;$0F != #00, #04
             F0EB : C9 01		cmp	#$01	;
             F0ED : F0 06		beq	$F0F5	;
             ;$0F != #00, #01, #04
             F0EF : 20 A4 F1		jsr	$F1A4	;	Inactivate sprite
-            F0F2 : 4C 01 F1		jmp	$F101	;	Exit point
+            |     ;==========================================================================================
+            |     ; Reset sprites
+            |     ;==========================================================================================
+            |->   F1A4 : A0 00		ldy	#$00		;
+                  ;External cycle, perform internal cycle setup, $06 will determine the number of internal iterations
+               -> F1A6 : A6 06		ldx	$06		;	
+               |  ; ??? - Apparently, writing $01 to $09 multiple times has no effect after executing this routine, for the exit point restores $09 from the stack
+               |  F1A8 : A5 01		lda	$01		;	
+               |  F1AA : 85 09		sta	$09		;	
+               |  ; The "reset" vertical position is #FF
+               |  F1AC : A9 FF		lda	#$FF	;
+               |  ;Internal cycle, write every 4 bytes
+               |  F1AE : 91 04		sta	($04),y	;	
+               |  F1B0 : C8			iny			;	
+               |  F1B1 : C8			iny			;
+               |  F1B2 : C8			iny			;
+               |  F1B3 : C8			iny			;	
+               |  F1B4 : CA			dex			;	
+               |  F1B5 : D0 F7		bne	$F1AE	;
+               |  ;Add 8 to $00 (purpose unknown), decrement $07, iterate over external cycle again if not zero
+               |  F1B7 : A5 00		lda	$00		;	
+               |  F1B9 : 18			clc			;	
+               |  F1BA : 69 08		adc	#$08	;	
+               |  F1BC : 85 00		sta	$00		;	
+               |  F1BE : C6 07		dec	$07		;	
+               -- F1C0 : D0 E4		bne	$F1A6	;
+>>       |------- F1C2 : 60			rts			;
+         |   
+         -> F0F2 : 4C 01 F1		jmp	$F101	;	Exit point
             ;$0F = #01
             F0F5 : 20 70 F1		jsr	$F170	;	Activate horizontal flipping
             F0F8 : 20 48 F1		jsr	$F148	;	Hor/vert. position set-up

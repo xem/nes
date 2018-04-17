@@ -732,6 +732,31 @@ CPU.op = function(){
   // Opcode
   switch(opcode){
 
+    // ADC
+    // A,Z,C,N = A+M+C
+    // Add M, A and C and store the result in A. C: set if bit 7 of result overflows, cleared otherwise. Z: set if A = 0, cleared otherwise. N: bit 7 of result
+    case 0x61: // ADC (d,X)
+    case 0x65: // ADC d
+    case 0x69: // ADC #i
+    case 0x6d: // ADC a
+    case 0x71: // ADC (d),Y
+    case 0x75: // ADC d,X
+    case 0x79: // ADC a,Y
+    case 0x7d: // ADC a,X
+      var M = CPU.read(operand);
+      var result = CPU.A + M + CPU.C;
+      if(result > 0xFF){
+        CPU.set_c();
+      }
+      else {
+        CPU.clear_c();
+      }
+      CPU.A = result & 0xFF;
+      CPU.set_z(CPU.A);
+      CPU.set_n(CPU.A);
+      a_info.innerHTML = tools.format2(CPU.A);
+      break;
+    
     // AND
     // A,Z,N = A&M
     // Store in A the result of M AND A. Z: set if A = 0, cleared otherwise. N: bit 7 of result
@@ -774,6 +799,13 @@ CPU.op = function(){
         CPU.PC = operand;
         branch = 1;
       }
+      break;
+    
+    // CLC
+    // C = 0
+    // Clear carry flag
+    case 0x18: // CLC
+      CPU.clear_c();
       break;
     
     // CLD
@@ -838,8 +870,19 @@ CPU.op = function(){
       CPU.set_n(value);
       break;
     
+    // DEX
+    // X,Z,N = X - 1
+    // Decrement Y. Z: result = 0. N: bit 7 of result
+    // (Y = (Y - 1) & 0xFF)
+    case 0xca: // DEX
+      CPU.X = (CPU.X - 1) & 0xFF;
+      x_info.innerHTML = tools.format2(CPU.X);
+      CPU.set_z(CPU.X);
+      CPU.set_n(CPU.X);
+      break;
+      
     // DEY
-    // M,Z,N = Y - 1
+    // Y,Z,N = Y - 1
     // Decrement Y. Z: result = 0. N: bit 7 of result
     // (Y = (Y - 1) & 0xFF)
     case 0x88: // DEY
@@ -849,6 +892,26 @@ CPU.op = function(){
       CPU.set_n(CPU.Y);
       break;
       
+    // INX
+    // X,Z,N = X+1
+    // Increment Y (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result
+    case 0xe8: // INX
+      CPU.X = (CPU.X + 1) & 0xFF;
+      x_info.innerHTML = tools.format2(CPU.X);
+      CPU.set_z(CPU.X);
+      CPU.set_n(CPU.X);
+      break;
+
+    // INY
+    // Y,Z,N = Y+1
+    // Increment Y (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result
+    case 0xc8: // INY
+      CPU.Y = (CPU.Y + 1) & 0xFF;
+      y_info.innerHTML = tools.format2(CPU.Y);
+      CPU.set_z(CPU.Y);
+      CPU.set_n(CPU.Y);
+      break;
+    
     // JMP
     // Jump (set PC) to the address in the operand.
     case 0x4c: // JMP a
@@ -860,9 +923,9 @@ CPU.op = function(){
     // JSR
     // Jump to subroutine: push PC - 1 on the stack and set PC to the address in operand
     case 0x20: // JSR a
-      CPU.write(CPU.S + 0x100, (CPU.PC - 1) >> 8);
+      CPU.write(CPU.S + 0x100, (CPU.PC + 2) >> 8);
       CPU.S = (CPU.S - 1) & 0xFF;
-      CPU.write(CPU.S + 0x100, (CPU.PC - 1) & 0xFF);
+      CPU.write(CPU.S + 0x100, (CPU.PC + 2) & 0xFF);
       CPU.S = (CPU.S - 1) & 0xFF;
       CPU.draw_internal_ram(CPU.S + 0x100);
       CPU.PC = operand;
@@ -916,7 +979,7 @@ CPU.op = function(){
       CPU.set_n(CPU.Y);
       break;
       
-    // LSR
+    // LSR A
     // A,C,Z,N = A >> 1
     // Right shift operand after putting bit 0 in C. Bit 7 = 0. Z: set if result = 0, cleared otherwise. N: bit 7 of result
     case 0x4a: // LSR = LSR A
@@ -925,9 +988,11 @@ CPU.op = function(){
       CPU.set_z(value);
       CPU.set_n(value);
       CPU.set_c_carry(value);
-      // value &= 0xFF;
+      CPU.A = value & 0xFF;
+      a_info.innerHTML = tools.format2(CPU.A);
       break;
     
+    // LSR
     // M,C,Z,N = M >> 1
     case 0x46: // LSR d
     case 0x4e: // LSR a
@@ -938,7 +1003,7 @@ CPU.op = function(){
       CPU.set_z(value);
       CPU.set_n(value);
       CPU.set_c_carry(value);
-      // value &= 0xFF;
+      CPU.write(operand, value & 0xFF);
       break;
       
     // PHA
@@ -948,7 +1013,18 @@ CPU.op = function(){
       CPU.S = (CPU.S - 1) & 0xFF;
       CPU.draw_internal_ram(CPU.S + 0x100);
       s_info.innerHTML = tools.format2(CPU.S);
-      CPU.cycles++;
+      cycles++;
+      break;
+    
+    // RTS
+    // Return from subroutine: pull PC - 1 from the stack (the lowest byte, then the highest byte, see JSR)
+    case 0x60: // RTS
+      CPU.S = (CPU.S + 1) & 0xFF;
+      CPU.PC = CPU.read(CPU.S + 0x100);
+      CPU.S = (CPU.S + 1) & 0xFF;
+      CPU.PC = CPU.PC + CPU.read(CPU.S + 0x100) << 8;
+      CPU.PC++;
+      cycles += 4;
       break;
     
     // SEI
@@ -980,6 +1056,26 @@ CPU.op = function(){
       CPU.write(operand, CPU.Y);
       break;
       
+    // TAX
+    // X = A
+    // Copy A in X. Z: set if X = 0, cleared otherwise. N: bit 7 of X
+    case 0xaa: // TAX
+      CPU.X = CPU.A;
+      CPU.set_z(CPU.X);
+      CPU.set_n(CPU.X);
+      x_info.innerHTML = tools.format2(CPU.X);
+      break;
+      
+    // TAY
+    // Y = A
+    // Copy A in Y. Z: set if Y = 0, cleared otherwise. N: bit 7 of Y
+    case 0xa8: // TAY
+      CPU.Y = CPU.A;
+      CPU.set_z(CPU.Y);
+      CPU.set_n(CPU.Y);
+      y_info.innerHTML = tools.format2(CPU.Y);
+      break;
+    
     // TXA
     // A = X
     // Copy X in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A
@@ -1217,7 +1313,7 @@ CPU.set_z = function(value){
 CPU.set_n = function(value){
   
   // Set N
-  CPU.N = value >> 7;
+  CPU.N = (value >> 7) & 0b1;
   
   // Update P
   if(CPU.N === 1){
@@ -1260,6 +1356,30 @@ CPU.set_c_carry = function(value){
   else {
     CPU.P = (CPU.P & 0b11111110);
   }
+  
+  // UI
+  c_info.innerHTML = CPU.C;
+}
+
+CPU.set_c = function(){
+  
+  // Set C
+  CPU.C = 0;
+  
+  // Update P
+  CPU.P = (CPU.P | 0b00000001);
+  
+  // UI
+  c_info.innerHTML = CPU.C;
+}
+
+CPU.clear_c = function(){
+  
+  // Clear C
+  CPU.C = 0;
+  
+  // Update P
+  CPU.P = (CPU.P & 0b11111110);
   
   // UI
   c_info.innerHTML = CPU.C;
