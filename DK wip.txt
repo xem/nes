@@ -176,17 +176,17 @@ C7C2 : 20 E7 C7		jsr	$C7E7		;
                |  F1BC : 85 00		sta	$00		;	
                |  F1BE : C6 07		dec	$07		;	
                -- F1C0 : D0 E4		bne	$F1A6	;
->>       |------- F1C2 : 60			rts			;
+         |------- F1C2 : 60			rts			;
          |   
          -> F0F2 : 4C 01 F1		jmp	$F101	;	Exit point
-            ;$0F = #01
-            F0F5 : 20 70 F1		jsr	$F170	;	Activate horizontal flipping
-            F0F8 : 20 48 F1		jsr	$F148	;	Hor/vert. position set-up
-            F0FB : 4C 01 F1		jmp	$F101	;	Exit point
-            ;$0F = #04
-            F0FE : 20 19 F1		jsr	$F119	;	Sprite reset, copy attributes	
-            ;---------------------------------------------------------------------------------------------
-            ;Exit point - restore X,Y, $00, $05-$09		
+            |   ;$0F = #01
+            |   F0F5 : 20 70 F1		jsr	$F170	;	Activate horizontal flipping
+            |   F0F8 : 20 48 F1		jsr	$F148	;	Hor/vert. position set-up
+            |   F0FB : 4C 01 F1		jmp	$F101	;	Exit point
+            |   ;$0F = #04
+            |   F0FE : 20 19 F1		jsr	$F119	;	Sprite reset, copy attributes	
+            |   ;---------------------------------------------------------------------------------------------
+            v   ;Exit point - restore X,Y, $00, $05-$09		
             F101 : 68			pla			;
             F102 : 85 09		sta	$09		;
             F104 : 68			pla			;
@@ -205,11 +205,82 @@ C7C2 : 20 E7 C7		jsr	$C7E7		;
             F116 : AA			tax			;	
             F117 : 68			pla			;	
             F118 : 60			rts			;
-  
-  ;Disable BKG display and clear background layer
-  C804 : 4C B3 CB		jmp	$CBB3		;
-
-
+            |
+            v
+            ;Disable BKG display and clear background layer
+            C804 : 4C B3 CB		jmp	$CBB3		;
+            |
+            v
+            ;==========================================================================================
+            ; Disable BKG display and clear background layer
+            ;==========================================================================================
+            ;Disable BKG display
+            CBB3 : 20 96 D1		jsr	$D196		;
+            |
+            v
+            ;==========================================================================================
+            ; Disable BKG display
+            ;
+            ;==========================================================================================
+            ;Load local copy of PPU control 2 register
+            D196 : A5 11		lda	$11		;		$11 = PPU Control 2 local copy
+            ;Disable BKG layer display (clear bit 3)
+            D198 : 29 E7		and	#$E7	;
+            ;Update local copy and real PPU register		
+            D19A : 8D 01 20		sta	$2001	;
+            D19D : 85 11		sta	$11		;
+            D19F : 60			rts			;
+            |
+            v
+            ;Clear background layer	
+            CBB6 : 4C C3 F1		jmp	$F1C3		;	
+            |
+            v
+            ;==========================================================================================
+            ; Clear background layer
+            ;
+            ; Fills the entire visible BKG area with a blank tile, effectively clearing the BKG layer.
+            ; Also clears the attribute table, filling it with value #00.
+            ;
+            ; Input arguments: none
+            ; Output: updates the whole BKG area in PPU RAM
+            ;==========================================================================================
+            ;Read PPU Status Register (resets VRAM Address flip/flop)
+            F1C3 : AD 02 20		lda	$2002		;
+            ;Set VRAM R/W Address automatic increment to 1 (bit 2 = 0)
+            F1C6 : A5 10		lda	$10			; $10 = PPU Control 1  local copy
+            F1C8 : 29 FB		and	#$FB		; Clear bit 2 (VRAM R/W address increment by 1)
+            F1CA : 8D 00 20		sta	$2000		;
+            ;Set VRAM R/W Address to $2000 (PPU Nametable 0)
+            F1CD : A9 20		lda	#$20		; MSB
+            F1CF : 8D 06 20		sta	$2006		;
+            F1D2 : A9 00		lda	#$00		; LSB
+            F1D4 : 8D 06 20		sta	$2006		;
+            ;Fill nametable 0 (PPU RAM $2000-23FF) with black background tile
+            F1D7 : A2 04		ldx	#$04		;			
+            F1D9 : A0 00		ldy	#$00		;
+            F1DB : A9 24		lda	#$24		;	#24 = black, empty tile
+            F1DD : 8D 07 20		sta	$2007		;
+            F1E0 : 88			dey				;
+            F1E1 : D0 FA		bne	$F1DD		;
+            F1E3 : CA			dex				;
+            F1E4 : D0 F7		bne	$F1DD		;
+            ;Set VRAM R/W Address to $23C0 (attribute table 0)
+            F1E6 : A9 23		lda	#$23		; MSB
+            F1E8 : 8D 06 20		sta	$2006		; 
+            F1EB : A9 C0		lda	#$C0		; LSB
+            F1ED : 8D 06 20		sta	$2006		; 
+            ;Fill attribute table with value #00
+            F1F0 : A0 40		ldy	#$40		;				
+            F1F2 : A9 00		lda	#$00		;
+            F1F4 : 8D 07 20		sta	$2007		;
+            F1F7 : 88			dey				;
+            F1F8 : D0 FA		bne	$F1F4		;
+            F1FA : 60			rts				;
+            |
+-------------
+|            
+v
 ;On the title screen, there is a small menu that allows a player to select the game type (1 or 2 players, Game A or B).
 ;There's a small asterisk to the left of the four menu entries, denoting which one is the currently selected option. This is the "game select sprite".
 ;Set game-select sprite's initial vertical position 
@@ -228,3 +299,49 @@ C7D8 : A5 10		lda	$10		;
 C7DA : 49 80		eor	#$80		;
 C7DC : 8D 00 20		sta	$2000		;
 C7DF : 85 10		sta	$10		;
+
+;==========================================================================================
+;Endless loop
+;
+; This is what the CPU is executing when it's not handling an NMI.
+; All of the game's logic is handled during an NMI, so the only thing left is the
+; (pseudo) random number generation.
+;==========================================================================================
+;Update LFSR pseudo-random generator and loop
+C7E1 : 20 FC F4		jsr	$F4FC		;	
+|
+--> ;==========================================================================================
+    ; LFSR (Linear Feedback Shift Register, a pseudo-random generator) updater
+    ;
+    ; It is a 64-bit LFSR, using 2 bits as "taps" (bit 1 of byte $18 and bit 1 of byte $19)
+    ; For more information, look up LFSR in the Wikipedia.
+    ;
+    ; Input: No arguments
+    ; Output: updates LFSR bytes ($18-1F)
+    ; Auxiliary: $00
+    ;
+    ;==========================================================================================
+    ;Mask bit 1 of bytes $18 and $19, XOR them
+    F4FC : A5 18		lda	$18		;	
+    F4FE : 29 02		and	#$02	;
+    F500 : 85 00		sta	$00		;
+    F502 : A5 19		lda	$19		;
+    F504 : 29 02		and	#$02	;	
+    F506 : 45 00		eor	$00		;
+    ;Set or clear carry depending on result of XOR
+    F508 : 18			clc			;
+    F509 : F0 01		beq	$F50C	;
+    F50B : 38			sec			;
+    ;Rotate right through carry bytes $18-$1F
+>>  F50C : 66 18		ror	$18		;	
+    F50E : 66 19		ror	$19		;
+    F510 : 66 1A		ror	$1A		;
+    F512 : 66 1B		ror	$1B		;
+    F514 : 66 1C		ror	$1C		;
+    F516 : 66 1D		ror	$1D		;
+    F518 : 66 1E		ror	$1E		;
+    F51A : 66 1F		ror	$1F		;
+--- F51C : 60			rts			;
+|
+v
+C7E4 : 4C E1 C7		jmp	$C7E1		;
