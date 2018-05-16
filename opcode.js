@@ -476,6 +476,7 @@ CPU.op = function(){
       CPU.update_z(value);
       CPU.update_n(value);
       CPU.write(M, value);
+      cycles += 2;
       break;
       
     // PHA
@@ -520,6 +521,7 @@ CPU.op = function(){
       CPU.update_z(value);
       CPU.update_n(value);
       CPU.write(M, value);
+      cycles += 2;
       break;
     
     // ROR
@@ -545,6 +547,7 @@ CPU.op = function(){
       CPU.update_z(value);
       CPU.update_n(value);
       CPU.write(M, value);
+      cycles += 2;
       break;
     
     // RTS

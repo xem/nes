@@ -2,33 +2,45 @@
  NES emulation cheat-sheet 
 ===========================
 
-This document aims to summarize all the knowledge required to develop a NES emulator.
-Please open a ticket on https://github.com/xem/nes if you find errors or parts that could be explained better.
+This document aims to summarize all there is to know in order to understand or develop a NES emulator.
+Please open a ticket on https://github.com/xem/nes if you find errors or unclear things.
+
+--------------------------------------------
+Notation and standards used in this document
+--------------------------------------------
+
+- Sizes are written in bytes (B) or kibibytes (1KiB = 1024B).
+- Hexadecimal values and addresses are written as: $12 (1B) or $3456 (2B).
+- Binary values are written as: 01010101b.
+- Bits in a byte are numbered [7, 6, 5, 4, 3, 2, 1, 0] (ex: in the value $80, bit 7 is set, bits 0-6 are cleared).
+- Signed bytes are represented using two's complement:
+  Bit 7 represents the sign, numbers 0 to 127 are encoded 00000000b to 01111111b, numbers -128 to -1 are encoded 10000000b to 11111111b.
+- When a value lower than 0 or higher than 255 is set in a CPU register or in memory, it wraps around as an unsigned byte (-1 becomes 255, 256 becomes 1).
 
 --------------------------------
 I. Physical cartridge (Game PAK)
 --------------------------------
 
-NES cartridges always contain at least one 16KB PRG-ROM bank and one 8KB CHR bank (ROM or RAM).
+NES cartridges always contain at least one 16KiB PRG-ROM bank and one 8KiB CHR-ROM (or RAM) bank.
 Some games contain extra chips to extend the NES's processing power or to save the player's progress.
 
-+---------+--------+--------+------------------------------------------------+------------+
-| Banks   | Size   | Number | Use                                            | Access     |
-+---------+--------+--------+------------------------------------------------+------------+
-| PRG-ROM | 16KB   | 1-32+  | Game's code                                    | Read-only  |
-| PRG-RAM | 2-64KB | 0-1    | Persistent save slot (battery-backed)          | Read/Write |
-| CHR-ROM | 8KB    | 0-64+  | Hardcoded game graphics (also called VROM)     | Read-only  |
-| CHR-RAM | 8KB    | 0-1    | Dynamic game graphics (generated at runtime)   | Read/Write |
-| VRAM    | 2KB    | 0-1    | Add 2 screens of nametable memory to the PPU   | Read/Write |
-| Trainer | 512B   | 0-1    | Mapper subroutines (useless for emulators)     | Read-only  |
-| Extra   | 8KB    | 0-3    | Extra ROM banks/hint screen data (arcade only) | Read-only  |
-+---------+--------+--------+------------------------------------------------+------------+
++---------+---------+--------+------------------------------------------------+------------+
+| Banks   | Size    | Number | Use                                            | Access     |
++---------+---------+--------+------------------------------------------------+------------+
+| PRG-ROM | 16KiB   | 1-32+  | Game's code                                    | Read-only  |
+| PRG-RAM | 2-64KiB | 0-1    | Persistent save slot (battery-backed)          | Read/Write |
+| CHR-ROM | 8KiB    | 0-64+  | Hardcoded game graphics (also called VROM)     | Read-only  |
+| CHR-RAM | 8KiB    | 0-1    | Dynamic game graphics (generated at runtime)   | Read/Write |
+| VRAM    | 2KiB    | 0-1    | Adds 2 screens of nametable memory to the PPU  | Read/Write |
+| Trainer | 512B    | 0-1    | Mapper subroutines (useless for emulators)     | Read-only  |
+| Extra   | 8KiB    | 0-3    | Extra ROM banks/hint screen data (arcade only) | Read-only  |
++---------+---------+--------+------------------------------------------------+------------+
 
-The NES's CPU and PPU can only address 32KB of PRG-ROM and 8KB of CHR-ROM at once.
-A lot of games can fit in this size (ex: Super Mario Bros, 40KB).
+The NES's CPU and PPU can only address 32KiB of PRG-ROM and 8KiB of CHR-ROM at once.
+A lot of games can fit in this size (ex: Super Mario Bros takes exactly 40KiB).
 Bigger games perform bank switching to access different parts of the cartridge's ROM when they're needed.
 Banks setup and switching for each game is defined by a mapper (see VI. Mappers).
-Mappers also define the PPU's nametables' mirroring, or extend them with a 2KB VRAM chip (see III. PPU).
+Mappers also define the PPU's nametables' mirroring, or extend them with a 2KiB VRAM chip (see III. PPU).
 Emulators simulate the battery-packed PRG-RAM by writing its content in a save file on the hard disk.
 The ROM banks of a NES cartridge can be dumped in a "ROM" file. The most used ROM format for NES (iNES) is described below.
 
@@ -38,8 +50,9 @@ II. iNES ROM file format
 
 > Summary
 
-Two main versions of this format exist (1.0 and 2.0), both are described here. They both use the extension ".nes".
+Three main versions of this format exist (archaic, 1.0 and 2.0). They all use the file extension ".nes".
 The file starts with a 16B header containing all the metadata required to emulate the game, followed by the ROM banks.
+Archaic iNES only uses the first 6 bytes of the header, iNES 1.0 uses 12 bytes, and iNES 2.0 uses 14 bytes. 
 
 ---
 
@@ -48,10 +61,10 @@ The file starts with a 16B header containing all the metadata required to emulat
 +------+-----------------------------------------------------------------------------------------+
 | Byte | Use                                                                                     |
 +------+-----------------------------------------------------------------------------------------+
-| 0-3  | $4E $45 $53 $1A ("NES<EOF>")                                                            |
+| 0-3  | $4E $45 $53 $1A (ASCII chars "NES<EOF>")                                                |
 +------+-----------------------------------------------------------------------------------------+
-| 4    | Number of 16KB PRG-ROM banks                                                            |
-| 5    | Number of 8KB CHR-ROM banks (if 0 => use 1 CHR-RAM bank)                                |
+| 4    | Number of 16KiB PRG-ROM banks                                                           |
+| 5    | Number of 8KiB CHR-ROM banks (if 0 => use 1 CHR-RAM bank)                               |
 +------+-----------------------------------------------------------------------------------------+
 | 6    | - bit 0: Nametable mirroring (0 => horizontal / 1 => vertical)                          |
 |      | - bit 1: Cartridge contains battery-backed PRG-RAM (CPU $6000-$7FFF)                    |
@@ -60,22 +73,22 @@ The file starts with a 16B header containing all the metadata required to emulat
 |      | - bits 4-7: Bits 0-3 of mapper number                                                   |
 +------+-----------------------------------------------------------------------------------------+
 | 7    | - bit 0: Vs. arcade system                                                              |
-|      | - bit 1: iNES 1.0: hint screen data (8KB, placed after CHR data)                        |
+|      | - bit 1: iNES 1.0: hint screen data (8KiB, placed after CHR data)                       |
 |      | |        iNES 2.0: PC-10 arcade system                                                  |
-|      | - bits 2-3: If bit 3 = 1 and bit 2 = 0: iNES 2.0. Else: iNES 1.0 (*)                    |
+|      | - bits 2-3: If bit 3 = 1 and bit 2 = 0: iNES 2.0. Else: iNES 1.0. Unreliable! (*)       |
 |      | - bits 4-7: Bits 4-7 of mapper number                                                   |
 +------+-----------------------------------------------------------------------------------------+
-| 8    | - iNES 1.0: Number of 8KB PRG-RAM banks (if 0 => add 1 bank for better compatibility)   |
+| 8    | - iNES 1.0: Number of 8KiB PRG-RAM banks (if 0 => add 1 bank for better compatibility)  |
 |      | - iNES 2.0: Submapper (bits 0-4), bits 8-11 of mapper number (bits 5-8)                 |
 +------+-----------------------------------------------------------------------------------------+
-| 9    | - iNES 1.0: TV system (0: NTSC / 1: PAL), do not rely blindly on this value if it's 0   |
+| 9    | - iNES 1.0: TV system (0: NTSC / 1: PAL). Unreliable! (*)                               |
 |      | - iNES 2.0: bits 8-11 of CHR-ROM size (bits 0-3), bits 8-11 of PRG-ROM size (bits 4-7)  |
 +------+-----------------------------------------------------------------------------------------+
 | 10   | iNES 2.0: PRG-RAM NOT battery-backed (bits 0-3) and battery-backed (bits 4-7)           |
 | 11   | iNES 2.0: CHR-RAM NOT battery-backed (bits 0-3) and battery-backed (bits 4-7)           |
 |      | (values follow a logarithmic scale. 0: 0 byte / 1-14: 128 * 2^N bytes / 15: reserved)   |
 +------+-----------------------------------------------------------------------------------------+
-| 12   | iNES 2.0: Bit 0: NTSC / PAL (do not rely blindly on this value if it's 0). Bit 1: both  |
+| 12   | iNES 2.0: Bit 0: NTSC / PAL Bit 1: both. Unreliable! (*)                                |
 +------+-----------------------------------------------------------------------------------------+
 | 13   | iNES 2.0: Vs. arcade system configuration: PPU mode (bits 0-4), Vs. mode (bits 4-7)     |
 +------+-----------------------------------------------------------------------------------------+
@@ -84,11 +97,25 @@ The file starts with a 16B header containing all the metadata required to emulat
 | 15   | $00 (Reserved)                                                                          |
 +------+-----------------------------------------------------------------------------------------+
 
-(*) Unfortunately, some old ROMs contain garbage (text) in the bytes 7-15 of the header, making the bits 2 and 3 unreliable.
+(*) Unfortunately, some archaic ROMs contain garbage (text) in the bytes 7-15 of the header.
+
+---
+
+> iNES version detection
+
 To detect the iNES version reliably, this procedure is recommended:
 - If (byte 7 AND $0C) == $08, and the size encoded in bytes 4, 5 and 9 does not exceed the file size, then NES 2.0.
 - Else if (byte 7 AND $0C) == $00, and bytes 12-15 are 0, then iNES 1.0.
-- Else, archaic iNES (this format only uses bits 0-6, and therefore only supports the first 16 mappers).
+- Else, archaic iNES.
+
+---
+
+> TV system detection
+
+Many ROMs omit the information about TV system (NTSC/PAL) in bytes 9 and 12 of the header. In that case, some extra hints exist:
+- The filename can contain "(E)", "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC / "(EU)" or "(World)" for both.
+- The checksum of PRG-RAM and CHR-RAM (combined) can be looked for in a NES ROM database like NesCartDB.
+- Or you can fallback to NTSC if you don't know (a ROM played with the wrong TV system will play about 20% slower or faster than normal.)
 
 ---
 
@@ -96,26 +123,24 @@ To detect the iNES version reliably, this procedure is recommended:
 
 Right after the header, the ROM file contains:
 - A 512B trainer (if enabled in byte 6, bit 2).
-- The 16KB PRG-ROM banks (at least one).
-- The 8KB CHR-ROM banks (if any).
-- The 8KB hint screen data (if enabled in byte 7, bit 1, in iNES 1.0) or extra ROM banks (if enabled in byte 14, iNES 2.0).
+- The 16KiB PRG-ROM banks (at least one).
+- The 8KiB CHR-ROM banks (if any).
+- The 8KiB hint screen data (if enabled in byte 7, bit 1, in iNES 1.0) or extra ROM banks (if enabled in byte 14, iNES 2.0).
 
 ---
 
 > Interrupt vector table
 
 The last 6 bytes of the last PRG-ROM bank contain three 16-bit addresses (or vectors) used by the CPU in certain conditions (see III. CPU > Interrupts):
+These vectors are encoded in big-endian. Ex: NMI vector = (memory[$FFFB] << 8) + memory[$FFFA]
 
-+---------+-------------+---------------------------------------------------+
-| Vector  | Bytes       | Use                                               |
-+---------+-------------+---------------------------------------------------+
-| NMI     | $FFFA-$FFFB | Jump here after a non-maskable interrupt          |
-| Reset   | $FFFC-$FFFD | Jump here after a reset (and on boot)             |
-| IRQ/BRK | $FFFE-$FFFF | Jump here after an interrupt request or a BRK/PHP |
-+---------+-------------+---------------------------------------------------+
-
-These vectors are encoded in big-endian.
-Ex: NMI vector = (memory[$FFFB] << 8) + memory[$FFFA]
++---------+-------------+-----------------------------------------+
+| Vector  | Bytes       | When the CPU jumps to this address      |
++---------+-------------+-----------------------------------------+
+| NMI     | $FFFA-$FFFB | After a non-maskable interrupt          |
+| Reset   | $FFFC-$FFFD | After a reset (and on boot)             |
+| IRQ/BRK | $FFFE-$FFFF | After an interrupt request or a BRK/PHP |
++---------+-------------+-----------------------------------------+
 
 --------
 III. CPU
@@ -123,9 +148,10 @@ III. CPU
 
 > Summary
 
-The CPU continuously executes the opcode (instruction) stored at the address pointed by the PC register.
+The NES's 6502 CPU continuously executes the opcode (instruction) stored at the address pointed by the PC register.
 Some instructions are followed by immediate operands (1 or 2 bytes).
-Instructions take 2 to 7 CPU cycles (also called ticks) to execute.
+Instructions take 2 to 7 CPU cycles (or "ticks") to execute.
+NTSC consoles execute 1.79 million ticks per second (1.66 million for PAL), which represents 35,800 ticks per frame (27,666 on PAL).
 PC is incremented after each instruction (+1, +2 or +3 bytes, according to the operand size).
 In case of branch / jump instruction, PC is set to a new value, without being incremented.
 The CPU communicates with other components (mapper, PPU, APU, joypads...) through reads and writes in specific memory addresses.
@@ -133,12 +159,12 @@ Interrupts can pause the program and execute a dedicated routine, before resumin
 
 ---
 
-> CPU memory map (64KB)
+> CPU memory (64KiB)
 
 +-------------+-------+-------------------------------------------------------+
 | Address     | Size  | Use                                                   |
 +-------------+-------+-------------------------------------------------------+
-| $0000-$07FF | 2048B | 2KB internal RAM:                                     |
+| $0000-$07FF | 2KiB  | 2KiB internal RAM:                                    |
 | $0000-$000F | 16B   | - Zero page                                           |
 | $0010-$00FF | 240B  | - Global variables                                    |
 | $0100-$019F | 160B  | - Next VBlank's nametable data                        |
@@ -147,9 +173,9 @@ Interrupts can pause the program and execute a dedicated routine, before resumin
 | $0300-$03FF | 256B  | - Sound / misc                                        |
 | $0400-$07FF | 1024B | - Arrays / misc                                       |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - -+
-| $0800-$0FFF | 2048B | Mirror of $0000-$07FF                                 |
-| $1000-$17FF | 2048B | Mirror of $0000-$07FF                                 |
-| $1800-$1FFF | 2048B | Mirror of $0000-$07FF                                 |
+| $0800-$0FFF | 2KiB  | Mirror of $0000-$07FF                                 |
+| $1000-$17FF | 2KiB  | Mirror of $0000-$07FF                                 |
+| $1800-$1FFF | 2KiB  | Mirror of $0000-$07FF                                 |
 +-------------+-------+-------------------------------------------------------+
 | $2000-$2007 | 8B    | PPU I/O registers                                     |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - -+
@@ -158,18 +184,18 @@ Interrupts can pause the program and execute a dedicated routine, before resumin
 | $4000-$4017 | 24B   | APU I/O registers                                     |
 | $4018-$401F | 8B    | APU I/O test registers (normally disabled)            |
 +-------------+-------+-------------------------------------------------------+
-| $4020-$FFFF | 48KB  | Cartridge space:                                      |
+| $4020-$FFFF | 48KiB | Cartridge space:                                      |
 | $4020-$5FFF | 8160B | - Expansion ROM (some mappers add extra ROM/RAM here) |
-| $6000-$7FFF | 8KB   | - PRG-RAM (if any)                                    |
+| $6000-$7FFF | 8KiB  | - PRG-RAM (if any)                                    |
 | $7000-$71FF | 512B  | - trainer (if any)   => .nes file $0010-$020F         |
-| $8000-$BFFF | 16KB  | - PRG-ROM low page   => .nes file $0010-$400F (*)     |
-| $C000-$FFFF | 16KB  | - PRG-ROM high page  => .nes file $4010-$800F (*)     |
+| $8000-$BFFF | 16KiB | - PRG-ROM low page   => .nes file $0010-$400F (*)     |
+| $C000-$FFFF | 16KiB | - PRG-ROM high page  => .nes file $4010-$800F (*)     |
 | $FFFA-$FFFB | 2B    | - NMI vector         => .nes file $800A-$800B (*)     |
 | $FFFC-$FFFD | 2B    | - Reset vector       => .nes file $800C-$800D (*)     |
 | $FFFE-$FFFF | 2B    | - IRQ/BRK vector     => .nes file $800E-$800F (*)     |
 +-------------+-------+-------------------------------------------------------+
 
-(*) These values are valid for games that have 32KB of PRG-ROM or less and no trainer.
+(*) These values are valid for games that have 32KiB of PRG-ROM or less and no trainer.
 Some mappers allow to fix a bank or a part of a bank in memory. The fixed banks keep the same values after a bank switch.
 Even during bankswitches, the vector table will always be available $FFFA-$FFFF.
 Some games like Donkey Kong (J) have just one PRG-ROM bank. The CPU memory mirrors it at addresses [$8000-$BFFF] and [$C000-$FFFF].
@@ -242,47 +268,47 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 |     | Affected |                 Cycles spent for each addressing mode                      |                                                                                                                                             |
 | Op. | flags    |    | A  | #i | d  | d,X | d,Y | a  | a,X | a,Y | *+d | (a) | (d,X) | (d),Y | Details ("M" represents a byte in CPU memory)                                                                                               |
 +-----+----------+----+----+----+----+-----+-----+----+-----+-----+-----+-----+-------+-------+---------------------------------------------------------------------------------------------------------------------------------------------+
-| ADC | CZ---VN  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Store A + M + C into A. C: set if bit 7 of result overflows, cleared otherwise. Z: set if A = 0, cleared otherwise. N: bit 7 of result.     |
-| AND | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Store M AND A into A. Z: set if A = 0, cleared otherwise. N: bit 7 of result.                                                               |
-| ASL | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Left shift operand after putting bit 7 in C. Bit 0 = 0. Z: set if A = 0, cleared otherwise. N: bit 7 of result.                             |
-| BCC | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if C = 0.                                                                                            |
-| BCS | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if C = 1.                                                                                            |
-| BEQ | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if Z = 1.                                                                                            |
-| BIT | --Z--VN  |    |    |    | 3  |     |     | 4  |     |     |     |     |       |       | AND the bitmask stored in A and M. Z: set if result = 0, cleared otherwise. V = M6. N = bit 7 of M                                          |
-| BMI | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if N = 1.                                                                                            |
-| BNE | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if Z = 0.                                                                                            |
-| BPL | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if N = 0.                                                                                            |
+| ADC | CZ---VN  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | A = A + M + C. C = 1 if bit 7 of A overflows, 0 otherwise. Z = 1 if A = 0, 0 otherwise. N = bit 7 of A.     |
+| AND | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | A = M AND A. Z = 1 if A = 0, 0 otherwise. N: bit 7 of result.                                                               |
+| ASL | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | C = bit 7 of operand. Operand = operand << 1. Bit 0 of result = 0. Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                             |
+| BCC | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if C = 0.                                                                                            |
+| BCS | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if C = 1.                                                                                            |
+| BEQ | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if Z = 1.                                                                                            |
+| BIT | --Z--VN  |    |    |    | 3  |     |     | 4  |     |     |     |     |       |       | AND the bitmask stored in A and M. Z = 1 if result = 0, 0 otherwise. V = M6. N = bit 7 of M                                          |
+| BMI | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if N = 1.                                                                                            |
+| BNE | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if Z = 0.                                                                                            |
+| BPL | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if N = 0.                                                                                            |
 | BRK | ----B--  | 7  |    |    |    |     |     |    |     |     |     |     |       |       | Generate an IRQ request.                                                                                                                    |
-| BVC | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if O = 0.                                                                                            |
-| BVS | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | Branch to relative address (PC += rel) if O = 1.                                                                                            |
+| BVC | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if O = 0.                                                                                            |
+| BVS | -------  |    |    |    |    |     |     |    |     |     | 2*  |     |       |       | PC += rel, if O = 1.                                                                                            |
 | CLC | C------  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Clear carry flag.                                                                                                                           |
 | CLD | ---D---  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Clear decimal flag.                                                                                                                         |
 | CLI | --I----  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Clear interrupt disable flag.                                                                                                               |
 | CLV | -----V-  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Clear overflow tag.                                                                                                                         |
-| CMP | CZ----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Compare A and M. C: set if A >= M, cleared otherwise. Z: set if A = M, cleared otherwise. N: bit 7 of A - M.                                |
-| CPX | CZ----N  |    |    | 2  | 3  |     |     | 4  |     |     |     |     |       |       | Compare X and M. C: set if X >= M, cleared otherwise. Z: set if X = M, cleared otherwise. N: bit 7 of X - M.                                |
-| CPY | CZ----N  |    |    | 2  | 3  |     |     | 4  |     |     |     |     |       |       | Compare Y and M. C: set if Y >= M, cleared otherwise. Z: set if Y = M, cleared otherwise. N: bit 7 of Y - M.                                |
-| DEC | -Z----N  |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Decrement M (if 0: set it to 255). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                             |
-| DEX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Decrement X (if 0: set it to 255). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                             |
-| DEY | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Decrement Y (if 0: set it to 255). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                             |
-| EOR | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Store M XOR A into A. Z: set if A = 0, cleared otherwise. N: bit 7 of result.                                                               |
-| INC | -Z----N  |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Increment M (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                             |
-| INX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Increment X (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                             |
-| INY | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Increment Y (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result.                                             |
+| CMP | CZ----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Compare A and M. C = 1 if A >= M, 0 otherwise. Z = 1 if A = M, 0 otherwise. N: bit 7 of A - M.                                |
+| CPX | CZ----N  |    |    | 2  | 3  |     |     | 4  |     |     |     |     |       |       | Compare X and M. C = 1 if X >= M, 0 otherwise. Z = 1 if X = M, 0 otherwise. N: bit 7 of X - M.                                |
+| CPY | CZ----N  |    |    | 2  | 3  |     |     | 4  |     |     |     |     |       |       | Compare Y and M. C = 1 if Y >= M, 0 otherwise. Z = 1 if Y = M, 0 otherwise. N: bit 7 of Y - M.                                |
+| DEC | -Z----N  |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Decrement M (if 0: set it to 255). Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                                             |
+| DEX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Decrement X (if 0: set it to 255). Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                                             |
+| DEY | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Decrement Y (if 0: set it to 255). Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                                             |
+| EOR | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Store M XOR A into A. Z = 1 if A = 0, 0 otherwise. N: bit 7 of result.                                                               |
+| INC | -Z----N  |    |    |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Increment M (if 255: set it to 0). Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                                             |
+| INX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Increment X (if 255: set it to 0). Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                                             |
+| INY | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Increment Y (if 255: set it to 0). Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                                             |
 | JMP | -------  |    |    |    |    |     |     | 3  |     |     |     | 5   |       |       | Jump (set PC) to the address in the operand. (*).                                                                                           |
 | JSR | -------  |    |    |    |    |     |     | 6  |     |     |     |     |       |       | Jump to subroutine: push (address of next operation - 1) on the stack (highest byte then lowest byte) and set PC to the address in operand. |
-| LDA | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Load M in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A.                                                                             |
-| LDX | -Z----N  |    |    | 2  | 3  |     | 4   | 4  |     | 4+  |     |     |       |       | Load M in X. Z: set if X = 0, cleared otherwise. N: bit 7 of X.                                                                             |
-| LDY | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  |     |     |     |       |       | Load M in Y. Z: set if Y = 0, cleared otherwise. N: bit 7 of Y.                                                                             |
-| LSR | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Right shift operand after putting bit 0 in C. Bit 7 = 0. Z: set if result = 0, cleared otherwise. N: bit 7 of result.                       |
+| LDA | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Load M in A. Z = 1 if A = 0, 0 otherwise. N: bit 7 of A.                                                                             |
+| LDX | -Z----N  |    |    | 2  | 3  |     | 4   | 4  |     | 4+  |     |     |       |       | Load M in X. Z = 1 if X = 0, 0 otherwise. N: bit 7 of X.                                                                             |
+| LDY | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  |     |     |     |       |       | Load M in Y. Z = 1 if Y = 0, 0 otherwise. N: bit 7 of Y.                                                                             |
+| LSR | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Right shift operand after putting bit 0 in C. Bit 7 = 0. Z = 1 if result = 0, 0 otherwise. N: bit 7 of result.                       |
 | NOP | -------  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | No operation.                                                                                                                               |
-| ORA | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Store M OR A into A. Z: set if A = 0, cleared otherwise. N: set if bit 7 is set.                                                            |
+| ORA | -Z----N  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Store M OR A into A. Z = 1 if A = 0, 0 otherwise. N = 1 if bit 7 is set.                                                            |
 | PHA | -------  | 3  |    |    |    |     |     |    |     |     |     |     |       |       | Push A on the stack.                                                                                                                        |
 | PHP | -------  | 3  |    |    |    |     |     |    |     |     |     |     |       |       | Push P (the status flags) on the stack.                                                                                                     |
-| PLA | -Z----N  | 4  |    |    |    |     |     |    |     |     |     |     |       |       | Pull A from the stack. Z: set if A = 0, cleared otherwise. N: bit 7 of A.                                                                   |
+| PLA | -Z----N  | 4  |    |    |    |     |     |    |     |     |     |     |       |       | Pull A from the stack. Z = 1 if A = 0, 0 otherwise. N: bit 7 of A.                                                                   |
 | PLP | CZIDBVN  | 4  |    |    |    |     |     |    |     |     |     |     |       |       | Pull P from the stack, and update all the flags with the values pulled.                                                                     |
-| ROL | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Save C in a var. Put bit 7 of operand in C. Left shift operand. Bit 0 = saved C. Z: set if operand is 0, 1 otherwise. N: bit 7 of operand.  |
-| ROR | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Save C in a var. Put bit 0 of operand in C. Right shift operand. Bit 7 = saved C. Z: set if operand is 0, 1 otherwise. N: bit 7 of operand. |
+| ROL | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Save C in a var. Put bit 7 of operand in C. Left shift operand. Bit 0 = saved C. Z = 1 if operand is 0, 1 otherwise. N: bit 7 of operand.  |
+| ROR | CZ----N  |    | 2  |    | 5  | 6   |     | 6  | 7   |     |     |     |       |       | Save C in a var. Put bit 0 of operand in C. Right shift operand. Bit 7 = saved C. Z = 1 if operand is 0, 1 otherwise. N: bit 7 of operand. |
 | RTI | CZIDBVN  | 6  |    |    |    |     |     |    |     |     |     |     |       |       | Return from interrupt: pull P (the flags) and PC from the stack.                                                                            |
 | RTS | -------  | 6  |    |    |    |     |     |    |     |     |     |     |       |       | Return from subroutine: pull PC from the stack (the lowest byte, then the highest byte, see JSR), increment it, and jump to it.             |
 | SBC | CZ---VN  |    |    | 2  | 3  | 4   |     | 4  | 4+  | 4+  |     |     | 6     | 5+    | Store A - M - NOT C into A. C: 0 if bit 7 overflows, else 1. Z: 1 if A = 0, else 0. V: 1 if sign bit is wrong, else 0. N: bit 7 of result.  |
@@ -292,12 +318,12 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 | STA | -------  |    |    |    | 3  | 4   |     | 4  | 5   | 5   |     |     | 6     | 6     | Store A in M.                                                                                                                               |
 | STX | -------  |    |    |    | 3  |     | 4   | 4  |     |     |     |     |       |       | Store X in M.                                                                                                                               |
 | STY | -------  |    |    |    | 3  | 4   |     | 4  |     |     |     |     |       |       | Store Y in M.                                                                                                                               |
-| TAX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy A in X. Z: set if X = 0, cleared otherwise. N: bit 7 of X.                                                                             |
-| TAY | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy A in Y. Z: set if Y = 0, cleared otherwise. N: bit 7 of Y.                                                                             |
-| TSX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy S in X. Z: set if X = 0, cleared otherwise. N: bit 7 of X.                                                                             |
-| TXA | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy X in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A.                                                                             |
+| TAX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy A in X. Z = 1 if X = 0, 0 otherwise. N: bit 7 of X.                                                                             |
+| TAY | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy A in Y. Z = 1 if Y = 0, 0 otherwise. N: bit 7 of Y.                                                                             |
+| TSX | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy S in X. Z = 1 if X = 0, 0 otherwise. N: bit 7 of X.                                                                             |
+| TXA | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy X in A. Z = 1 if A = 0, 0 otherwise. N: bit 7 of A.                                                                             |
 | TXS | -------  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy X in S.                                                                                                                                |                              
-| TYA | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy Y in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A.                                                                             |
+| TYA | -Z----N  | 2  |    |    |    |     |     |    |     |     |     |     |       |       | Copy Y in A. Z = 1 if A = 0, 0 otherwise. N: bit 7 of A.                                                                             |
 +-----+----------+----+----+----+----+-----+-----+----+-----+-----+-----+-----+-------+-------+---------------------------------------------------------------------------------------------------------------------------------------------+
 (*) JMP is buggy: if the indirect vector falls on a page boundary ($xxFF), it will fetch the bits 4-7 from $xxFF as expected, and the bits 0-3 from $xx00.
 
@@ -319,7 +345,7 @@ Many encodings of this operand exist, and are called addressing modes.
 | A     | Accumulator       | 0     | Implied operand is A (ex: LSR == LSR A)                  | 2              |
 | #i    | Immediate         | 1     | PC + 1                                                   | 2              |
 | d     | Zero page         | 1     | d = memory[PC + 1]                                       | 3-5            |
-| *+d   | relative          | 1     | PC + 2 + signed(memory[PC + 1]) (*)                      | 2-4            |
+| *+d   | relative          | 1     | PC + 2 + signed(memory[PC + 1])                          | 2-4            |
 | a     | Absolute          | 2     | a = (memory[PC + 2] << 8) + memory[PC + 1]               | 3-6            |
 | (a)   | Indirect          | 2     | (memory[a + 1] << 8) + memory[a]                         | 5              | \
 | d,X   | Zero page indexed | 1     | (memory[PC + 1] + X) % 256                               | 4-6            | |
@@ -329,11 +355,6 @@ Many encodings of this operand exist, and are called addressing modes.
 | (d,X) | Indexed indirect  | 1     | (memory[(d + X + 1) % 256] << 8) + memory[(d + X) % 256] | 6              | |
 | (d),Y | Indirect indexed  | 1     | (memory[(d + 1) % 256] << 8) + memory[d] + Y             | 5-6            | |
 +-------+-------------------+------------------------------------------------------------------+----------------+ /
-
-(*) Signed bytes on NES use 2's complement:
-- Bit 7 represents the sign.
-- Numbers 0 to 127 are encoded 00000000b to 01111111b.
-- Numbers -128 -1 are encoded 10000000b to 11111111b.
 
 ---
 
@@ -416,7 +437,7 @@ Dozens of different controllers exist, only the standard joypads (for players 1 
 - IRQ (maskable interrupt) are triggered by certain mappers and BRK instructions.
   They are ignored if the flag I is set.
 - NMI (non-maskable interrupt) are triggered by the PPU when a VBlank occurs at the end of each frame.
-  They can't be ignored but can be disabled in the PPU Control Register 1.
+  They can't be ignored with the I flag but can be disabled in the PPU Control Register 1.
 - Reset interrupts are triggered by starting or resetting the system.
 
 In case of conflict, the priority is given to reset, then NMI, then IRQ.
@@ -469,21 +490,21 @@ Every scanline from 0 to 261 is preceded by a pre-rending scanline where the PPU
 
 ---
 
-> PPU memory map (64KB + 128B):
+> PPU memory map (64KiB + 128B):
 
 PPU:
 
 +-------------+-------+----------------------------------------------------------+
 | Address     | Size  | Use                                                      |
 +-------------+-------+----------------------------------------------------------+
-| $0000-$FFFh | 4KB   | Pattern Table 0 (256 tiles) => .nes file $8010-$810F (*) |
+| $0000-$FFFh | 4KiB  | Pattern Table 0 (256 tiles) => .nes file $8010-$810F (*) |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
-| $1000-$1FFF | 4KB   | Pattern Table 1 (256 tiles) => .nes file $8110-$820F (*) |
+| $1000-$1FFF | 4KiB  | Pattern Table 1 (256 tiles) => .nes file $8110-$820F (*) |
 +-------------+-------+----------------------------------------------------------+
-| $2000-$23FF | 1KB   | Name Table 0 + attribute Table 0                         |
-| $2400-$27FF | 1KB   | Name Table 1 + attribute Table 1                         |
-| $2800-$2BFF | 1KB   | Name Table 2 + attribute Table 2                         |
-| $2C00-$2FFF | 1KB   | Name Table 3 + attribute Table 3                         |
+| $2000-$23FF | 1KiB  | Name Table 0 + attribute Table 0                         |
+| $2400-$27FF | 1KiB  | Name Table 1 + attribute Table 1                         |
+| $2800-$2BFF | 1KiB  | Name Table 2 + attribute Table 2                         |
+| $2C00-$2FFF | 1KiB  | Name Table 3 + attribute Table 3                         |
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $3000-$3EFF | 3840B | Mirror of $2000-$2EFF (not used during rendering)        |
 +-------------+-------+----------------------------------------------------------+
@@ -493,9 +514,9 @@ PPU:
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $4000-$FFFF | 48MB  | Mirrors of $0000-$3FFF                                   |
 +-------------+-------+----------------------------------------------------------+
-(*) These values are valid for games that have 32KB of PRG-ROM and 8KB of CHR-ROM.
-Games with more than 32KB of PRG-ROM will have their CHR-ROM data stored at a higher address inside the ROM file. 
-Games with more than 8KB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses (see VI. Mappers).
+(*) These values are valid for games that have 32KiB of PRG-ROM and 8KiB of CHR-ROM.
+Games with more than 32KiB of PRG-ROM will have their CHR-ROM data stored at a higher address inside the ROM file. 
+Games with more than 8KiB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses (see VI. Mappers).
 The pattern tables contain 8x8px tiles used in the game's background (see nametables) and sprites (see OAM).
 Pattern tables are sometimes called low/high page or left/right page.
 
@@ -525,7 +546,6 @@ This register controls PPU operations.
 | 6   | PPU master/slave (always 0 on stock NES)                 |
 | 7   | NMI enable (generates NMI at the start of VBlank)        |
 +-----+----------------------------------------------------------+
-NB: the order of the bits in a byte is: 76543210.
 
 CPU $2001: PPUMASK register (write only):
 Controls the rendering of sprites and backgrounds, as well as color effects.
@@ -687,13 +707,13 @@ The viewport (the part that is visible on screen at a given time) can be placed 
  60 +--------+--------+
  
  
-The NES only provides 2KB of VRAM.
-Some games provide 2KB of extra VRAM for name tables 2 and 3. These games can hold 4 screens in memory at once.
+The NES only provides 2KiB of VRAM.
+Some games provide 2KiB of extra VRAM for name tables 2 and 3. These games can hold 4 screens in memory at once.
 Without extra VRAM, name tables 2 and 3 are mirrors of name tables 0 and 1, with horizontal mirroring ($2000 = $2400 / $2800 = $2C00) or vertical mirroring ($2000 = $2800 / $2400 = $2C00).
-Some mappers also allow to mirror the first name table four times and use only 1KB of VRAM.
+Some mappers also allow to mirror the first name table four times and use only 1KiB of VRAM.
 (Other exotic name table setups exist but are very rare and rely on specific mappers not described here.)
 
-Each 1KB of VROM contains:
+Each 1KiB of VROM contains:
 - a matrix of 32x30 tiles indexed from a pattern table (960B = 1B per tile).
 - a matrix of 8x8 attributes bytes (64B = 1B per attribute):
 
@@ -861,24 +881,24 @@ While hundreds of mappers exist, ~74% of all games use mappers 0 to 4, described
 ("window" designs the amount of ROM/RAM that is bankswitched)
 A simple emulator can handle "mapper 0" games only without any effort.
 A more complete he emulator has to emulate the behavior of mappers 1 to 4 (at least).
-If a game with "mapper 0" weighs more than 40KB, consider it as an unknown mapper.
+If a game with "mapper 0" weighs more than 40KiB, consider it as an unknown mapper.
 
 > Mapper 0: NROM (no mapper) - used by 12.5% of all games
 
-- PRG-ROM: 16/32KB ($8000-$FFFF)
-- PRG-RAM: 0/2/4KB ($6000-$7FFF, mirrored to fill the whole 8KB)
-- CHR-ROM: 8KB (PPU $0000-1FFF)
+- PRG-ROM: 16/32KiB ($8000-$FFFF)
+- PRG-RAM: 0/2/4KiB ($6000-$7FFF, mirrored to fill the whole 8KiB)
+- CHR-ROM: 8KiB (PPU $0000-1FFF)
 - Name table mirroring: vertical or horizontal (hardwired)
 
 ---
 
 > Mapper 1: MMC1 - used by 20.3% of all games
 
-- PRG-ROM: up to 512KB
- * 16KB fixed or window at $8000-$FFFF (initially first bank)
- * 16KB fixed or window at $C000-$FFFF (initially last bank)
-- PRG-RAM: up to 32KB (8KB window at $6000-$7FFF)
-- CHR-ROM: up to 128KB (4/8KB windows at PPU $000-$0FFF and/or PPU $1000-$1FFF)
+- PRG-ROM: up to 512KiB
+ * 16KiB fixed or window at $8000-$FFFF (initially first bank)
+ * 16KiB fixed or window at $C000-$FFFF (initially last bank)
+- PRG-RAM: up to 32KiB (8KiB window at $6000-$7FFF)
+- CHR-ROM: up to 128KiB (4/8KiB windows at PPU $000-$0FFF and/or PPU $1000-$1FFF)
 - Name table mirroring: 1-screen / horizontal / vertical (programmable)
 
 > Registers:
@@ -928,83 +948,83 @@ Control register:
 |     | 3: fix bank at $C000 and switch bank at $8000 |
 +-----+-----------------------------------------------+
 | 4   | CHR-ROM bank mode                             |
-|     | 0: switch 8 KB at once                        |
-|     | 1: switch two separate 4 KB banks             |
+|     | 0: switch 8KiB at once                        |
+|     | 1: switch two separate 4KiB banks             |
 +-----+-----------------------------------------------+
 
 Once the control register is set, 3 new registers allow to switch CHR or PRG banks:
 
 CHR bank 0 register ($A000-$BFFF):
 
-+-----+---------------------------------------------------------------------------------+
-| Bit | Use                                                                             |
-+-----+---------------------------------------------------------------------------------+
-| 0-4 | Select the 4 or 8KB bank accessible at PPU $0000 (bit 0 is ignored in 8KB mode) |
-+-----+---------------------------------------------------------------------------------+
++-----+-----------------------------------------------------------------------------------+
+| Bit | Use                                                                               |
++-----+-----------------------------------------------------------------------------------+
+| 0-4 | Select the 4 or 8KiB bank accessible at PPU $0000 (bit 0 is ignored in 8KiB mode) |
++-----+-----------------------------------------------------------------------------------+
 
 CHR bank 1 register ($C000-$DFFF):
 
-+-----+--------------------------------------------------------------------+
-| Bit | Use                                                                |
-+-----+--------------------------------------------------------------------+
-| 0-4 | Select the 4KB bank accessible at PPU $1000 (ignored in 8 KB mode) |
-+-----+--------------------------------------------------------------------+
++-----+---------------------------------------------------------------------+
+| Bit | Use                                                                 |
++-----+---------------------------------------------------------------------+
+| 0-4 | Select the 4KiB bank accessible at PPU $1000 (ignored in 8KiB mode) |
++-----+---------------------------------------------------------------------+
 
 PRG bank register ($E000-$FFFF):
 
-+-----+---------------------------------------------------------------------------------+
-| Bit | Use                                                                             |
-+-----+---------------------------------------------------------------------------------+
-| 0-4 | Select the 16 or 32KB bank accessible at PPU $0000 (bit 0 ignored in 32KB mode) |
-| 5   | 0: enable the PRG-RAM chip / 1: disable it                                      |
-+-----+---------------------------------------------------------------------------------+
++-----+-----------------------------------------------------------------------------------+
+| Bit | Use                                                                               |
++-----+-----------------------------------------------------------------------------------+
+| 0-4 | Select the 16 or 32KiB bank accessible at PPU $0000 (bit 0 ignored in 32KiB mode) |
+| 5   | 0: enable the PRG-RAM chip / 1: disable it                                        |
++-----+-----------------------------------------------------------------------------------+
 
 ---
 
 > Mapper 2: UxROM - used by 11.2% of all games
 
-- PRG-ROM: 256/4096KB PRG-ROM
- * 16KB window at $8000-$FFFF (initially first bank)
- * 16KB fixed at $C000-$FFFF (last bank)
-- 8KB CHR-ROM
+- PRG-ROM: 256/4096KiB PRG-ROM
+ * 16KiB window at $8000-$FFFF (initially first bank)
+ * 16KiB fixed at $C000-$FFFF (last bank)
+- 8KiB CHR-ROM
 - Name table mirroring: vertical or horizontal (hardwired)
 
 Bank select register ($8000-$FFFF): 
 
-+-----+---------------------------------------------+
-| Bit | Use                                         |
-+-----+---------------------------------------------+
-| 0-3 | Select the 16KB PRG-ROM bank at $8000-$FFFF |
-+-----+---------------------------------------------+
++-----+----------------------------------------------+
+| Bit | Use                                          |
++-----+----------------------------------------------+
+| 0-3 | Select the 16KiB PRG-ROM bank at $8000-$FFFF |
++-----+----------------------------------------------+
 
 ---
 
 > Mapper 3: CNROM - used by 7.7% of all games
 
-- 16/32KB PRG-ROM
-- 32/2048KB CHR-ROM (8KB window at PPU $000-$1FFF, initially first bank)
+- 16/32KiB PRG-ROM
+- 32/2048KiB CHR-ROM (8KiB window at PPU $000-$1FFF, initially first bank)
 - Name table mirroring: vertical or horizontal (hardwired)
 
 Bank select register ($8000-$FFFF):
 
-+-----+-------------------------------------------------+
-| Bit | Use                                             |
-+-----+-------------------------------------------------+
-| 0-8 | Select the 16KB PRG-ROM bank at PPU $0000-$1FFF |
-+-----+-------------------------------------------------+
++-----+--------------------------------------------------+
+| Bit | Use                                              |
++-----+--------------------------------------------------+
+| 0-8 | Select the 16KiB PRG-ROM bank at PPU $0000-$1FFF |
++-----+--------------------------------------------------+
 
 ---
 
 > Mapper 4: MMC3 - used by 22.1% of all games
 
-- Up to 512K PRG-ROM
- * 8KB window at $8000-$9FFF or $C000-$DFFF
- * 8KB window at $A000-$BFFF
- * 8KB fixed at $C000-$DFFF or $8000-$9FFF (second-last bank)
- * 8KB fixed at $E000-$FFFF (last bank)
-- 8KB PRG-RAM at $6000-$7FFF
-- Up to 256b CHR-ROM (2 x 2KB + 4 x 1KB window at PPU $0000-$1FFF) or 8KB CHR-RAM
-- Up to 8KB WRAM
+- Up to 512KiB PRG-ROM
+ * 8KiB window at $8000-$9FFF or $C000-$DFFF
+ * 8KiB window at $A000-$BFFF
+ * 8KiB fixed at $C000-$DFFF or $8000-$9FFF (second-last bank)
+ * 8KiB fixed at $E000-$FFFF (last bank)
+- 8KiB PRG-RAM at $6000-$7FFF
+- Up to 256b CHR-ROM (2 x 2KiB + 4 x 1KiB window at PPU $0000-$1FFF) or 8KiB CHR-RAM
+- Up to 8KiB WRAM
 - Name table mirroring: vertical or horizontal (programmable) or 4-screen in some games
 
 Registers: 
@@ -1015,22 +1035,22 @@ Bank select register ($8000-$9FFE, even addresses):
 | Bit | Use                                                                         |
 +-----+-----------------------------------------------------------------------------+
 | 0-3 | Select a bank to update:                                                    |
-|     | 0: Select 2 KB CHR bank at PPU $0000-$07FF (or $1000-$17FF if bit 7 is set) |
-|     | 1: Select 2 KB CHR bank at PPU $0800-$0FFF (or $1800-$1FFF)                 |
-|     | 2: Select 1 KB CHR bank at PPU $1000-$13FF (or $0000-$03FF)                 |
-|     | 3: Select 1 KB CHR bank at PPU $1400-$17FF (or $0400-$07FF)                 |
-|     | 4: Select 1 KB CHR bank at PPU $1800-$1BFF (or $0800-$0BFF)                 |
-|     | 5: Select 1 KB CHR bank at PPU $1C00-$1FFF (or $0C00-$0FFF)                 |
-|     | 6: Select 8 KB PRG ROM bank at $8000-$9FFF (or $C000-$DFFF)                 |
-|     | 7: Select 8 KB PRG ROM bank at $A000-$BFFF                                  |
+|     | 0: Select 2KiB CHR bank at PPU $0000-$07FF (or $1000-$17FF if bit 7 is set) |
+|     | 1: Select 2KiB CHR bank at PPU $0800-$0FFF (or $1800-$1FFF)                 |
+|     | 2: Select 1KiB CHR bank at PPU $1000-$13FF (or $0000-$03FF)                 |
+|     | 3: Select 1KiB CHR bank at PPU $1400-$17FF (or $0400-$07FF)                 |
+|     | 4: Select 1KiB CHR bank at PPU $1800-$1BFF (or $0800-$0BFF)                 |
+|     | 5: Select 1KiB CHR bank at PPU $1C00-$1FFF (or $0C00-$0FFF)                 |
+|     | 6: Select 8KiB PRG ROM bank at $8000-$9FFF (or $C000-$DFFF)                 |
+|     | 7: Select 8KiB PRG ROM bank at $A000-$BFFF                                  |
 +-----+-----------------------------------------------------------------------------+
 | 6   | PRG ROM bank mode:                                                          |
 |     | 0: $8000-$9FFF swappable, $C000-$DFFF fixed to second-last bank             |
 |     | 1: $C000-$DFFF swappable, $8000-$9FFF fixed to second-last bank             |
 +-----+-----------------------------------------------------------------------------+
 | 7   | CHR A12 inversion:                                                          |
-|     | 0: two 2 KB banks at $0000-$0FFF, four 1 KB banks at $1000-$1FFF            |
-|     | 1: two 2 KB banks at $1000-$1FFF, four 1 KB banks at $0000-$0FFF            |
+|     | 0: two 2KiB banks at $0000-$0FFF, four 1KiB banks at $1000-$1FFF            |
+|     | 1: two 2KiB banks at $1000-$1FFF, four 1KiB banks at $0000-$0FFF            |
 +-----+-----------------------------------------------------------------------------+
  
 Bank data register ($8001-$9FFF, odd addresses):
@@ -1094,19 +1114,11 @@ VII. TV standards
                           | NTSC       | PAL      |
 +-------------------------+------------+----------+
 | FPS (ms per frame)      | 50 (16.67) | 60 (20)  |
-| Scanlines (VBlank)      | 262 (20)   | 312 (70) |
+| Scanlines (incl.VBlank) | 262 (20)   | 312 (70) |
 | CPU cycles per scanline | 113.33     | 106.56   |
 | Resolution              | 256x224    | 256x240  |
 | CPU speed               | 1.79MHz    | 1.66MHz  |
 +-------------------------+------------+----------+
-
-> ROM TV standard detection:
-
-It's not guaranteed that the ROM header contains information about the TV standard (NTSC/PAL) in bytes 9 and 12, but some extra hints exist:
-- The filename can contain "(E)", "(EUR)" or "(Europe)" for PAL / "(U)", "(USA)", "(J)" or "(Japan)" for NTSC / "(EU)" or "(World)" for both.
-- The checksum of PRG-RAM and CHR-RAM (combined) can be looked for in a NES ROM database like NesCartDB (this is the most reliable approach).
-
-A ROM played with the wrong TV standard will play slower or faster than normal.
 
 -------------
 VIII. Sources

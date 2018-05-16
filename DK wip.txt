@@ -308,40 +308,167 @@ C7DF : 85 10		sta	$10		;
 ; (pseudo) random number generation.
 ;==========================================================================================
 ;Update LFSR pseudo-random generator and loop
-C7E1 : 20 FC F4		jsr	$F4FC		;	
-|
---> ;==========================================================================================
-    ; LFSR (Linear Feedback Shift Register, a pseudo-random generator) updater
-    ;
-    ; It is a 64-bit LFSR, using 2 bits as "taps" (bit 1 of byte $18 and bit 1 of byte $19)
-    ; For more information, look up LFSR in the Wikipedia.
-    ;
-    ; Input: No arguments
-    ; Output: updates LFSR bytes ($18-1F)
-    ; Auxiliary: $00
-    ;
-    ;==========================================================================================
-    ;Mask bit 1 of bytes $18 and $19, XOR them
-    F4FC : A5 18		lda	$18		;	
-    F4FE : 29 02		and	#$02	;
-    F500 : 85 00		sta	$00		;
-    F502 : A5 19		lda	$19		;
-    F504 : 29 02		and	#$02	;	
-    F506 : 45 00		eor	$00		;
-    ;Set or clear carry depending on result of XOR
-    F508 : 18			clc			;
-    F509 : F0 01		beq	$F50C	;
-    F50B : 38			sec			;
-    ;Rotate right through carry bytes $18-$1F
->>  F50C : 66 18		ror	$18		;	
-    F50E : 66 19		ror	$19		;
-    F510 : 66 1A		ror	$1A		;
-    F512 : 66 1B		ror	$1B		;
-    F514 : 66 1C		ror	$1C		;
-    F516 : 66 1D		ror	$1D		;
-    F518 : 66 1E		ror	$1E		;
-    F51A : 66 1F		ror	$1F		;
---- F51C : 60			rts			;
-|
-v
-C7E4 : 4C E1 C7		jmp	$C7E1		;
+C7E1 : 20 FC F4		jsr	$F4FC		;	                                                               <----|
+|                                                                                                   |
+--> ;==========================================================================================     |
+    ; LFSR (Linear Feedback Shift Register, a pseudo-random generator) updater                      |
+    ;                                                                                               |
+    ; It is a 64-bit LFSR, using 2 bits as "taps" (bit 1 of byte $18 and bit 1 of byte $19)         |
+    ; For more information, look up LFSR in the Wikipedia.                                          |
+    ;                                                                                               |
+    ; Input: No arguments                                                                           |
+    ; Output: updates LFSR bytes ($18-1F)                                                           |
+    ; Auxiliary: $00                                                                                |
+    ;                                                                                               |
+    ;==========================================================================================     |
+    ;Mask bit 1 of bytes $18 and $19, XOR them                                                      |
+    F4FC : A5 18		lda	$18		;	                                                                    |
+    F4FE : 29 02		and	#$02	;                                                                     |
+    F500 : 85 00		sta	$00		;                                                                     |
+    F502 : A5 19		lda	$19		;                                                                     |
+    F504 : 29 02		and	#$02	;	                                                                    |
+    F506 : 45 00		eor	$00		;                                                                     |
+    ;Set or clear carry depending on result of XOR                                                  |
+    F508 : 18			clc			;                                                                         |
+    F509 : F0 01		beq	$F50C	;                                                                     |
+    F50B : 38			sec			;                                                                         |
+    ;Rotate right through carry bytes $18-$1F                                                       |
+    F50C : 66 18		ror	$18		;	                                                                    |
+    F50E : 66 19		ror	$19		;                                                                     |
+    F510 : 66 1A		ror	$1A		;                                                                     |
+    F512 : 66 1B		ror	$1B		;                                                                     |
+    F514 : 66 1C		ror	$1C		;                                                                     |
+    F516 : 66 1D		ror	$1D		;                                                                     |
+    F518 : 66 1E		ror	$1E		;                                                                     |
+    F51A : 66 1F		ror	$1F		;                                                                     |
+--- F51C : 60			rts			;                                                                         |
+|                                                                                                   |
+v                                                                                                   |
+C7E4 : 4C E1 C7		jmp	$C7E1		; --------------------------------------------------------------------|
+
+
+
+
+;==========================================================================================
+;NMI handler
+;==========================================================================================
+;Save accumulator in stack
+C85F : 48			pha			;	
+;Disable VBL 
+C860 : A5 10		lda	$10		;
+C862 : 29 7F		and	#$7F		;
+C864 : 8D 00 20		sta	$2000		;
+C867 : 85 10		sta	$10		;
+;Perform Sprite DMA, copying data from CPU RAM $0200-$02FF (the "sprite local area")
+C869 : A9 00		lda	#$00		;
+C86B : 8D 03 20		sta	$2003		;
+C86E : A9 02		lda	#$02		;
+C870 : 8D 14 40		sta	$4014		;		
+;Update BKG by copying the "BKG list" at $0331
+;Set up $00/$01 pointer to the #0331 address and call VRAM Write
+C873 : A9 31		lda	#$31		;		
+C875 : 85 00		sta	$00		;
+C877 : A9 03		lda	#$03		;		
+C879 : 85 01		sta	$01		;
+C87B : 20 37 F2		jsr	$F237		; 
+;Empty the local BKG list
+;Update the list size to #00 ($0330)
+C87E : A9 00		lda	#$00		;
+C880 : 8D 30 03		sta	$0330		; 
+;Store an "end-of-list" marker in the first list element ($0331)
+C883 : 8D 31 03		sta	$0331		;
+;Read gamepads
+C886 : 20 1D F5		jsr	$F51D		
+;Toggle BKG and sprite visibility
+C889 : A5 11		lda	$11			;
+C88B : 49 18		eor	#$18		;
+C88D : 8D 01 20		sta	$2001		;
+;Update audio
+C890 : 20 48 FA		jsr	$FA48		;
+;Branch to in-stage/not-in-stage logic
+C893 : A5 4E		lda	$4E			; 
+C895 : D0 2A		bne	$C8C1		;
+;------------------------------------------------------------------------------------------
+; General gamestate branching
+;------------------------------------------------------------------------------------------
+;Check if gameplay is frozen
+C897 : A5 4F		lda	$4F		; $4F = Movement freeze flag? (0 = Frozen, 1 = Free)
+;If frozen, handle initial stage logic and then go to exit point 
+C899 : F0 39		beq	$C8D4	;
+;Gameplay not frozen
+;Check if the game is in "victory in stage 4" mode 
+C89B : A5 9A		lda	$9A		;
+C89D : D0 06		bne	$C8A5		;
+;Not in "victory in stage 4" mode
+;Handle stage logic (this is the main logic handler of the game)
+C89F : 20 78 CE		jsr	$CE78			
+C8A2 : 4C D7 C8		jmp	$C8D7		;Skip to exit point
+;"Victory in stage 4" mode
+;Check if player has just beaten stage 4 (rivets) by checking if the removed rivets count is #08
+C8A5 : AD 4F 04		lda	$044F		;
+C8A8 : C9 08		cmp	#$08		;
+;If not, skip to initial stage logic
+C8AA : D0 28		bne	$C8D4		;	
+;------------------------------------------------------------------------------------------
+; Stage 4 victory scheduling
+;------------------------------------------------------------------------------------------
+; Handle stage 4 victory
+C8AC : 20 F0 CC		jsr	$CCF0		
+;Check $43 counter
+C8AF : A5 43		lda	$43		;
+;$43 != 00, go to exit point	
+C8B1 : D0 24		bne	$C8D7		;
+;$43 == 00
+;Reset rivets removed counter to zero
+C8B3 : A9 00		lda	#$00		;
+C8B5 : 8D 4F 04		sta	$044F		;
+;Freeze gameplay
+C8B8 : 85 4F		sta	$4F		;
+;Init $43 counter to #79
+C8BA : A9 79		lda	#$79		;
+C8BC : 85 43		sta	$43		;
+;Skip to exit point
+C8BE : 4C D7 C8		jmp	$C8D7		;
+;------------------------------------------------------------------------------------------
+; Not-in-stage logic (not playing the demo and no player is in a stage)
+;------------------------------------------------------------------------------------------
+;Check current player lives
+C8C1 : A5 55		lda	$55			;
+C8C3 : D0 06		bne	$C8CB		;
+;Lives == 0
+;Handle game over, go to exit point
+C8C5 : 20 30 CA		jsr	$CA30		;	
+C8C8 : 4C D7 C8		jmp	$C8D7		;
+;Lives != 0
+;Handle attract mode, go to exit point
+C8CB : 20 F3 C8		jsr	$C8F3		;	Attract mode handling
+C8CE : 20 BB F4		jsr	$F4BB		;	Update global counters
+C8D1 : 4C D7 C8		jmp	$C8D7		;
+;------------------------------------------------------------------------------------------
+; Gameplay frozen (stage setup)
+;------------------------------------------------------------------------------------------
+;Handle processing that occurs prior to starting a stage
+C8D4 : 20 C9 CA		jsr	$CAC9		;	
+;------------------------------------------------------------------------------------------
+; NMI handler exit point
+;------------------------------------------------------------------------------------------
+;Check if score displays must be udpated
+C8D7 : AD 05 05		lda	$0505		;
+C8DA : C9 01		cmp	#$01		;	
+C8DC : D0 0A		bne	$C8E8		;
+;Display the high score and the players' scores
+;Load the 1-player/2-player bitmask for the multi-BCD display routine
+C8DE : A5 51		lda	$51			; 
+C8E0 : 85 00		sta	$00			;
+;Update the multiple BCD displays
+C8E2 : 20 4B F2		jsr	$F24B		;
+;Clear score update flag
+C8E5 : CE 05 05		dec	$0505		;
+;Re-enable VBL
+C8E8 : A5 10		lda	$10		;	
+C8EA : 49 80		eor	#$80		;
+C8EC : 8D 00 20		sta	$2000		;
+C8EF : 85 10		sta	$10		;
+;Restore accumulator
+C8F1 : 68			pla			;
+C8F2 : 40			rti			;

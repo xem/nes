@@ -6,13 +6,13 @@ NES emulation cheat sheet:
 
 <!--
 NES ROM disassembler:
-- commented: https://github.com/xem/nes/blob/gh-pages/disassembler.html
-- demo: https://xem.github.io/nes/disassembler.html
-- 1kb zip: https://github.com/xem/nes/blob/gh-pages/1k.zip
+- commented: https://github.com/xem/nes/blob/gh-pages/disassembler/disassembler.html
+- demo: https://xem.github.io/nes/disassembler/disassembler.html
+- 1kb zip: https://github.com/xem/nes/blob/gh-pages/disassembler/1k.zip
 -->
 
-- NES emulator & debugger: (wip)
-https://xem.github.io/nes
+NES emulator & debugger: (wip)
+- https://xem.github.io/nes
 
 ---
 
