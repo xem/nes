@@ -239,7 +239,7 @@ It doesn't have any overflow/underflow protection (it just wraps between $00 and
 
 ---
 
-> Opcodes $00-$FF, including unofficial opcodes
+> Opcodes $00-$FF
 
      +----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
      | 00       | 01        | 02        | 03        | 04        | 05        | 06        | 07        | 08        | 09        | 0A        | 0B        | 0C        | 0D        | 0E        | 0F        |
@@ -452,41 +452,48 @@ When an interrupt occurs, the system must:
 - After executing a RTI (Return From Interrupt) instruction, pull PC and P from the stack.
 - Resume execution of the program.
 
-TODO: more detail for some CPU registers...?
+---
 
----------------------------------
-IV. PPU (Picture Processing Unit)
----------------------------------
+TODO: more detail for some registers...?
+
+-------
+IV. PPU 
+-------
 
 > Summary
 
-The PPU ticks 3 times (it renders 3 pixels of the screen) during each CPU tick.
+The PPU (Picture Processing Unit) ticks 3 times (renders 3 pixels of the screen) during each CPU tick.
 Each pixel color is computed according to the pattern tables, nametables, palettes, OAM registers and PPU registers.
-The PPU also provides important information to the CPU through PPU registers placed in the CPU address space.
+The PPU also provides important information to the CPU through the PPU registers.
+
+---
 
 > TV screen
 
-The PPU loops through all the (visible and invisible) dots of the screen:
-Every scanline from 0 to 261 is preceded by a pre-rending scanline where the PPU fetches the sprites to draw at the next scanline.
+The image displayed on screen measures 256 x 242 pixels. It's the same for NTSC and PAL TVs.
+The PPU loops through all the dots of the screen, from left to right and from top to bottom.
+At the end of each scanline, the PPU takes 85 ticks to return at the beginning of the next scanline, this is called HBlank and is generally represented by the horizontal dots 256 to 341.
+At the end of the 242nd scanline:
+- The bit 7 of register $2002 is set.
+- A NMI (non-maskable interrupt) is triggered and the corresponding routine is called.
+- The PPU takes the equivalent of 20 scanlines on NTSC (70 scanlines on PAL) to return at the beginning line 0, this is called VBlank.
 
-     0                                  256           341
+     0                                  255           341
    0 +-----------------------------------+-------------+  +--> dots
      |   ##                ##            |             |  |
      |  ####              ####           |             |  v
      |                                   |             |  scanlines
      |                                   |             |
      |                                  #|             |
-     | Visible scanlines               ##| HBlank dots |
-     |                                ###|     (85)    |
+     |        Visible scanlines        ##| HBlank dots |
+     |                                ###|             |
      |   #                   ##      ####|             |
      |   #      #            ##     #####|             |
      |###############  ##################|             |
- 241 |###############  ##################|             | <- bit 7 of $2002 is set here
-     +-----------------------------------+-------------+
- 242 | VBlank scanlines (x20 on NTSC, x70 on PAL)      |
-     | First VBlank line = post-render scanline (idle) |
-     | Last VBlank line = pre-render scanline          |
-     +-------------------------------------------------+
+     |###############  ##################|             |
+ 241 +-----------------------------------+-------------+
+     | VBlank scanlines (20 on NTSC, 70 on PAL)        |
+ ... +-------------------------------------------------+
 
 ---
 
@@ -514,6 +521,7 @@ PPU:
 +- - - - - - -+- - - -+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 | $4000-$FFFF | 48MB  | Mirrors of $0000-$3FFF                                   |
 +-------------+-------+----------------------------------------------------------+
+
 (*) These values are valid for games that have 32KiB of PRG-ROM and 8KiB of CHR-ROM.
 Games with more than 32KiB of PRG-ROM will have their CHR-ROM data stored at a higher address inside the ROM file. 
 Games with more than 8KiB of CHR-ROM use bankswitch to show different part of the CHR-ROM at these addresses (see VI. Mappers).
@@ -819,59 +827,29 @@ In scrolling games, the tiles around the viewport are updated at each frame in o
 
 Examples:
 
-Horizontal wraparound in a 2-screen nametable with vertical mirroring (ex: Super Mario Bros).
-
-+------------+--------------+
-|----+       |      +-------|
-|    |       |      |       |
-|ort |     VRAM     | viewp-|
-|    |     0 | 1    |       |
-|----+       |      +-------|
-+------------+--------------+
-|            |              |
-|            |              |
-|    VRAM MIRROR (unused)   |
-|          0 | 1            |
-|            |              |
-+------------+--------------+
-
-Vertical wraparound in a 2-screen nametable with horizontal mirroring (ex: Ice Climbers).
-
-+------------+--------------+
-||  -port   ||              |
-||          ||              |
-|+----------+|              |
-|            |              |
-|        0   |  VRAM    0   |
-+-- VRAM  ---+- MIRROR  ----+
-|        1   | (unused) 1   |
-|            |              |
-|            |              |
-|+----------+|              |
-||   view-  ||              |
-+------------+--------------+
-
-Horizontal + vertical wraparound in a 4-screen nametable with no mirroring (ex: Super Mario Bros 3).
-
-+------------+--------------+
-| |          |   |          |
-|-+          |   +----------|
-|            |              |
-|          0 | 1            |
-+--------- VRAM ------------+
-|          2 | 3            |
-|            |              |
-|-+          |   +----------|
-| |          |   | viewport |
-| |          |   |          |
-+------------+--------------+
+Horizontal wraparound                     |    Vertical wraparound                         |    Horizontal + vertical wraparound
+2-screen nametable + vertical mirroring   |    2-screen nametable + horizontal mirroring   |    4-screen nametable + no mirroring
+(ex: Super Mario Bros)                    |    (ex: Ice Climbers)                          |    (ex: Super Mario Bros 3)
+                                          |                                                |  
++------------+--------------+             |    +------------+--------------+               |    +------------+--------------+
+|----+       |      +-------|             |    ||  -port   ||              |               |    | |          |   |          |
+|    |       |      |       |             |    ||          ||              |               |    |-+          |   +----------|
+|ort |     VRAM     | viewp-|             |    |+----------+|              |               |    |            |              |
+|    |     0 | 1    |       |             |    |            |              |               |    |            |              |
+|----+       |      +-------|             |    |        0   |  VRAM    0   |               |    |          0 | 1            |
++------------+--------------+             |    +-- VRAM  ---+- MIRROR  ----+               |    +--------- VRAM ------------+
+|            |              |             |    |        1   | (unused) 1   |               |    |          2 | 3            |
+|            |              |             |    |            |              |               |    |            |              |
+|    VRAM MIRROR (unused)   |             |    |            |              |               |    |-+          |   +----------|
+|          0 | 1            |             |    |+----------+|              |               |    | |          |   | viewport |
+|            |              |             |    ||   view-  ||              |               |    | |          |   |          |
++------------+--------------+             |    +------------+--------------+               |    +------------+--------------+
 
 ------
 V. APU
 ------
 
 [Audio specs, TODO]
-
 
 -----------
 VI. Mappers
