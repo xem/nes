@@ -174,10 +174,10 @@ canvas { vertical-align: middle; background: #000; }
           <tr><td><canvas id=screen_canvas width=341 height=312 style="width:256px;height:242px"></canvas>
         </table>
         <div style="margin-top:5px">
-          <button onclick="CPU.op()">step</button>
-          <button onclick="CPU.play()">play</button> up to @ <input id=breakpoint value=f50c> <!-- BREAKPOINT -->
-          <button onclick="clearInterval(CPU.loop)">pause</button>
-          <button onclick="for(x10=10;x10--;)CPU.op()">x10</button>
+          <button onclick="op()">step</button>
+          <button onclick="play()">play</button> up to @ <input id=breakpoint value=f50c> <!-- BREAKPOINT -->
+          <button onclick="clearInterval(loop)">pause</button>
+          <button onclick="for(x10=10;x10--;)op()">x10</button>
           <!--button disabled>reset</button-->
           <!--button disabled>fullscreen</button>-->
         </div>
@@ -224,8 +224,8 @@ canvas { vertical-align: middle; background: #000; }
           <tr><td width=20>A<td width=40><pre id=a_info>0</pre>
           <tr><td>X<td><pre id=x_info>0</pre>
           <tr><td>Y<td><pre id=y_info>0</pre>
-          <tr style=background:#def><td>PC<td><pre onclick='tools.focus("cpu_byte_" + CPU.PC)' id=pc_info>0</pre>
-          <tr style=background:#fed><td>S<td><pre onclick='tools.focus("cpu_byte_" + CPU.S)' id=s_info>0</pre>
+          <tr style=background:#def><td>PC<td><pre onclick='tools.focus("cpu_byte_" + PC)' id=pc_info>0</pre>
+          <tr style=background:#fed><td>S<td><pre onclick='tools.focus("cpu_byte_" + S)' id=s_info>0</pre>
           <tr><td>P<td><pre id=p_info>0</pre>
         </table>
         
@@ -242,29 +242,12 @@ canvas { vertical-align: middle; background: #000; }
     
 </table>
 
-
+<script src=init.js></script>
 <script src=tools.js></script>
-<script src=gamepak.js></script>
 <script src=cpu.js></script>
 <script src=ppu.js></script>
 <script src=opcode.js></script>
 <script>
-
-// Globals
-emulator = {};
-debug = true;
-
-// Init emulator/debugger based on a file and filename
-emulator.init = function(file, filename){
-  gamepak.parse_rom(file, filename);
-  CPU.init();
-  PPU.init();
-  
-  // Debug
-  //for(var i=0;i<10300;i++){
-    //CPU.op();
-  //}
-}
 
 // Manual demo: load a ROM and use it
 browse.onchange = function(e){
@@ -272,7 +255,7 @@ browse.onchange = function(e){
   var file = new FileReader;
   file.readAsArrayBuffer(browse.files[0]),
   file.onload = function(){
-    emulator.init(file, filename);
+    init(file, filename);
   }
 }
 
@@ -285,8 +268,7 @@ onload = function(){
   file.send();
   file.onload = function(){
     file.result = file.response;
-    emulator.init(file, filename);
+    init(file, filename);
   }
 }
-
 </script>

@@ -1,9 +1,9 @@
 // Execute an opcode
 // Update UI and cycles counters
-CPU.op = function(){
+op = function(){
   
   // Read opcode
-  var opcode = CPU.read(CPU.PC);
+  var opcode = cpu_read(PC);
   
   // Memory address where the opcode operand is stored
   var M = 0;
@@ -21,7 +21,7 @@ CPU.op = function(){
   if([0x09,0x0b,0x29,0x2b,0x49,0x4b,0x69,0x6b,0x80,0x82,0x89,0x8b,0xa0,0xa2,0xa9,0xab,0xc0,0xc2,0xc9,0xcb,0xe0,0xe2,0xe9,0xeb].includes(opcode)){
     
     // Operand address: PC + 1
-    M = CPU.PC + 1;
+    M = PC + 1;
     
     // 2 CPU cycles
     cycles += 2;
@@ -35,7 +35,7 @@ CPU.op = function(){
   else if([0x04,0x05,0x06,0x07,0x24,0x25,0x26,0x27,0x44,0x45,0x46,0x47,0x64,0x65,0x66,0x67,0x84,0x85,0x86,0x87,0xa4,0xa5,0xa6,0xa7,0xc4,0xc5,0xc6,0xc7,0xe4,0xe5,0xe6,0xe7].includes(opcode)){
     
     // Operand address: memory[PC + 1]
-    M = CPU.read(CPU.PC + 1);
+    M = cpu_read(PC + 1);
     
     // 2 CPU cycles
     cycles += 2;
@@ -49,7 +49,7 @@ CPU.op = function(){
   else if([0x10,0x30,0x50,0x70,0x90,0xb0,0xd0,0xf0].includes(opcode)){
   
     // Operand address: PC + 2 + signed(memory[PC + 1])
-    M = CPU.PC + 2 + CPU.read(CPU.PC + 1, 1);
+    M = PC + 2 + cpu_read(PC + 1, 1);
     
     // 2* CPU cycles
     // TODO: 1 extra cycle is used if the branch succeeds and 2 extra cycles are used if the branch goes to a new page
@@ -64,7 +64,7 @@ CPU.op = function(){
   else if([0x0c,0x0d,0x0e,0x0f,0x20,0x2c,0x2d,0x2e,0x2f,0x4c,0x4d,0x4e,0x4f,0x6d,0x6e,0x6f,0x8c,0x8d,0x8e,0x8f,0xac,0xad,0xae,0xaf,0xcc,0xcd,0xce,0xcf,0xec,0xed,0xee,0xef].includes(opcode)){
         
     // Operand address: (memory[PC + 2] << 8) + memory[PC + 1]
-    M = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
+    M = (cpu_read(PC + 2) << 8) + cpu_read(PC + 1);
     
     // 3-6 CPU cycles
     // TODO: figure out why 3-6, 6502.js says 4
@@ -80,8 +80,8 @@ CPU.op = function(){
     
     // Absolute address: a = (memory[PC + 2] << 8) + memory[PC + 1]
     // Operand address: (memory[a + 1] << 8) + memory[a]
-    var a = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
-    M = (CPU.read(a + 1) << 8) + CPU.read(a);
+    var a = (cpu_read(PC + 2) << 8) + cpu_read(PC + 1);
+    M = (cpu_read(a + 1) << 8) + cpu_read(a);
     
     // 5 CPU cycles
     cycles += 5;
@@ -95,7 +95,7 @@ CPU.op = function(){
   else if([0x14,0x15,0x16,0x17,0x34,0x35,0x36,0x37,0x54,0x55,0x56,0x57,0x74,0x75,0x76,0x77,0x94,0x95,0xb4,0xb5,0xd4,0xd5,0xd6,0xd7,0xf4,0xf5,0xf6,0xf7].includes(opcode)){
   
     // Operand address: (memory[PC + 1] + X) % 256
-    M = (CPU.read(CPU.PC + 1) + CPU.X) % 256;
+    M = (cpu_read(PC + 1) + X) % 256;
     
     // 4-6 CPU cycles
     // TODO cycles
@@ -109,7 +109,7 @@ CPU.op = function(){
   // Zero page indexed
   else if([0x96,0x97,0xb6,0xb7].includes(opcode)){
     // Operand address: (memory[PC + 1] + Y) % 256
-    M = (CPU.read(CPU.PC + 1) + CPU.Y) % 256;
+    M = (cpu_read(PC + 1) + Y) % 256;
     
     // 4 CPU cycles
     cycles += 4;
@@ -123,8 +123,8 @@ CPU.op = function(){
   else if([0x1c,0x1d,0x1e,0x1f,0x3c,0x3d,0x3e,0x3f,0x5c,0x5d,0x5e,0x5f,0x7c,0x7d,0x7e,0x7f,0x9c,0x9d,0xbc,0xbd,0xdc,0xdd,0xde,0xdf,0xfc,0xfd,0xfe,0xff].includes(opcode)){
     // Absolute address: a = (memory[PC + 2] << 8) + memory[PC + 1]
     // Operand address: a + X 
-    var a = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
-    M = a + CPU.X;
+    var a = (cpu_read(PC + 2) << 8) + cpu_read(PC + 1);
+    M = a + X;
     
     // 4-7 CPU cycles
     // TODO
@@ -139,8 +139,8 @@ CPU.op = function(){
   else if([0x19,0x1b,0x39,0x3b,0x59,0x5b,0x79,0x7b,0x99,0x9b,0x9e,0x9f,0xb9,0xbb,0xbe,0xbf,0xd9,0xdb,0xf9,0xfb].includes(opcode)){
     // Absolute address: a = (memory[PC + 2] << 8) + memory[PC + 1]
     // Operand address: a + Y 
-    var a = (CPU.read(CPU.PC + 2) << 8) + CPU.read(CPU.PC + 1);
-    M = a + CPU.Y;
+    var a = (cpu_read(PC + 2) << 8) + cpu_read(PC + 1);
+    M = a + Y;
     
     // 4-5 CPU cycles
     // TODO
@@ -155,8 +155,8 @@ CPU.op = function(){
   else if([0x01,0x03,0x21,0x23,0x41,0x43,0x61,0x63,0x81,0x83,0xa1,0xa3,0xc1,0xc3,0xe1,0xe3].includes(opcode)){
     // Zero page index: d = memory[PC + 1]
     // Operand address: (memory[(d + X + 1) % 256] << 8) + memory[(d + X) % 256]
-    var d = CPU.read(CPU.PC + 1);
-    M = (CPU.read((d + CPU.X + 1) % 256) << 8) + CPU.read((d + CPU.X) % 256);
+    var d = cpu_read(PC + 1);
+    M = (cpu_read((d + X + 1) % 256) << 8) + cpu_read((d + X) % 256);
     
     // 6 CPU cycles
     cycles += 6;
@@ -170,8 +170,8 @@ CPU.op = function(){
   else if([0x11,0x13,0x31,0x33,0x51,0x53,0x71,0x73,0x91,0x93,0xb1,0xb3,0xd1,0xd3,0xf1,0xf3].includes(opcode)){
     // Zero page index: d = memory[PC + 1]
     // Operand: (memory[(d + 1) % 256] << 8) + memory[d] + Y
-    var d = CPU.read(CPU.PC + 1);
-    M = (CPU.read((d + 1) % 256) << 8) + CPU.read(d) + CPU.Y;
+    var d = cpu_read(PC + 1);
+    M = (cpu_read((d + 1) % 256) << 8) + cpu_read(d) + Y;
     
     // 5-6 CPU cycles
     // TODO
@@ -204,17 +204,17 @@ CPU.op = function(){
     case 0x75: // ADC d,X
     case 0x79: // ADC a,Y
     case 0x7d: // ADC a,X
-      var M = CPU.read(M);
-      var result = CPU.A + M + CPU.C;
+      var M = cpu_read(M);
+      var result = A + M + C;
       if(result > 0xFF){
-        CPU.set_c();
+        set_c();
       }
       else {
-        CPU.clear_c();
+        clear_c();
       }
-      CPU.A = result & 0xFF;
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      A = result & 0xFF;
+      update_z(A);
+      update_n(A);
       break;
     
     // AND
@@ -227,16 +227,16 @@ CPU.op = function(){
     case 0x35: // AND d,X
     case 0x39: // AND a,Y
     case 0x3d: // AND a,X
-      CPU.A = CPU.read(M) & CPU.A;
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      A = cpu_read(M) & A;
+      update_z(A);
+      update_n(A);
       break;
       
     // BEQ
     // Branch to relative address (PC += rel) if Z = 1. rel is signed
     case 0xf0: // BEQ *+d
-      if(CPU.Z == 1){
-        CPU.PC = M - 1;
+      if(Z == 1){
+        PC = M - 1;
         extra_bytes = 0;
       }
       break;
@@ -244,8 +244,8 @@ CPU.op = function(){
     // BNE
     // Branch to relative address (PC += rel) if Z = 0
     case 0xd0: // BNE *+d
-      if(CPU.Z == 0){
-        CPU.PC = M - 1;
+      if(Z == 0){
+        PC = M - 1;
         extra_bytes = 0;
       }
       break;
@@ -253,8 +253,8 @@ CPU.op = function(){
     // BPL
     // Branch to relative address (PC += rel) if N = 0
     case 0x10: // BPL *+d
-      if(CPU.N == 0){
-        CPU.PC = M - 1;
+      if(N == 0){
+        PC = M - 1;
         extra_bytes = 0;
       }
       break;
@@ -262,13 +262,13 @@ CPU.op = function(){
     // CLC
     // Clear carry flag
     case 0x18: // CLC
-      CPU.clear_c();
+      clear_c();
       break;
     
     // CLD
     // Clear decimal flag
     case 0xD8: // CLD
-      CPU.clear_d();
+      clear_d();
       break;
       
     // CMP
@@ -281,15 +281,15 @@ CPU.op = function(){
     case 0xd5: // CMP d,X
     case 0xd9: // CMP a,Y
     case 0xdd: // CMP a,X
-      var value = CPU.A - CPU.read(M);
-      if(CPU.A >= CPU.read(M)){
-        CPU.set_c();
+      var value = A - cpu_read(M);
+      if(A >= cpu_read(M)){
+        set_c();
       }
       else {
-        CPU.clear_c();
+        clear_c();
       }
-      CPU.update_z(value);
-      CPU.update_n(value);
+      update_z(value);
+      update_n(value);
       break;
       
     // CPX
@@ -297,15 +297,15 @@ CPU.op = function(){
     case 0xe0: // CPX #i 
     case 0xe4: // CPX d
     case 0xec: // CPX a
-      var value = CPU.X - CPU.read(M);
-      if(CPU.X >= CPU.read(M)){
-        CPU.set_c();
+      var value = X - cpu_read(M);
+      if(X >= cpu_read(M)){
+        set_c();
       }
       else {
-        CPU.clear_c();
+        clear_c();
       }
-      CPU.update_z(value);
-      CPU.update_n(value);
+      update_z(value);
+      update_n(value);
       break;
 
     // CPY
@@ -313,15 +313,15 @@ CPU.op = function(){
     case 0xc0: // CPY #i
     case 0xc4: // CPY d
     case 0xcc: // CPY a
-      var value = CPU.Y - CPU.read(M);
-      if(CPU.X >= CPU.read(M)){
-        CPU.set_c();
+      var value = Y - cpu_read(M);
+      if(X >= cpu_read(M)){
+        set_c();
       }
       else {
-        CPU.clear_c();
+        clear_c();
       }
-      CPU.update_z(value);
-      CPU.update_n(value);
+      update_z(value);
+      update_n(value);
       break;
       
     // DEC
@@ -330,26 +330,26 @@ CPU.op = function(){
     case 0xce: // DEC a
     case 0xd6: // DEC d,X
     case 0xde: // DEC a,X
-      var value = (CPU.read(M) - 1) & 0xFF;
-      CPU.write(M, value);
-      CPU.update_z(value);
-      CPU.update_n(value);
+      var value = (cpu_read(M) - 1) & 0xFF;
+      write(M, value);
+      update_z(value);
+      update_n(value);
       break;
     
     // DEX
     // Decrement Y. Z: result = 0. N: bit 7 of result
     case 0xca: // DEX
-      CPU.X = (CPU.X - 1) & 0xFF;
-      CPU.update_z(CPU.X);
-      CPU.update_n(CPU.X);
+      X = (X - 1) & 0xFF;
+      update_z(X);
+      update_n(X);
       break;
       
     // DEY
     // Decrement Y. Z: result = 0. N: bit 7 of result
     case 0x88: // DEY
-      CPU.Y = (CPU.Y - 1) & 0xFF;
-      CPU.update_z(CPU.Y);
-      CPU.update_n(CPU.Y);
+      Y = (Y - 1) & 0xFF;
+      update_z(Y);
+      update_n(Y);
       break;
       
     // EOR
@@ -362,44 +362,44 @@ CPU.op = function(){
     case 0x55: // EOR d,X
     case 0x59: // EOR a,Y
     case 0x5d: // EOR a,X
-      CPU.A = CPU.A ^ CPU.read(M);
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      A = A ^ cpu_read(M);
+      update_z(A);
+      update_n(A);
       break;
       
     // INX
     // Increment Y (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result
     case 0xe8: // INX
-      CPU.X = (CPU.X + 1) & 0xFF;
-      CPU.update_z(CPU.X);
-      CPU.update_n(CPU.X);
+      X = (X + 1) & 0xFF;
+      update_z(X);
+      update_n(X);
       break;
 
     // INY
     // Increment Y (if 255: set it to 0). Z: set if result = 0, cleared otherwise. N: bit 7 of result
     case 0xc8: // INY
-      CPU.Y = (CPU.Y + 1) & 0xFF;
-      CPU.update_z(CPU.Y);
-      CPU.update_n(CPU.Y);
+      Y = (Y + 1) & 0xFF;
+      update_z(Y);
+      update_n(Y);
       break;
     
     // JMP
     // Jump (set PC) to the address in the M.
     case 0x4c: // JMP a
     case 0x6c: // JMP (a)
-      CPU.PC = M - 1;
+      PC = M - 1;
       extra_bytes = 0;
       break;
       
     // JSR
     // Jump to subroutine: push PC - 1 on the stack and set PC to the address in M
     case 0x20: // JSR a
-      CPU.write(CPU.S + 0x100, (CPU.PC + 2) >> 8);
-      CPU.S = (CPU.S - 1) & 0xFF;
-      CPU.write(CPU.S + 0x100, (CPU.PC + 2) & 0xFF);
-      CPU.S = (CPU.S - 1) & 0xFF;
-      CPU.draw_internal_ram(CPU.S + 0x100);
-      CPU.PC = M - 1;
+      write(S + 0x100, (PC + 2) >> 8);
+      S = (S - 1) & 0xFF;
+      write(S + 0x100, (PC + 2) & 0xFF);
+      S = (S - 1) & 0xFF;
+      draw_internal_ram(S + 0x100);
+      PC = M - 1;
       extra_bytes = 0;
       cycles += 2;
       break;
@@ -414,9 +414,9 @@ CPU.op = function(){
     case 0xb5: // LDA d,X
     case 0xb9: // LDA a,Y
     case 0xbd: // LDA a,X
-      CPU.A = CPU.read(M);
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      A = cpu_read(M);
+      update_z(A);
+      update_n(A);
       break;
       
     // LDX
@@ -426,9 +426,9 @@ CPU.op = function(){
     case 0xae: // LDX a
     case 0xb6: // LDX d,Y
     case 0xbe: // LDX a,Y
-      CPU.X = CPU.read(M);
-      CPU.update_z(CPU.X);
-      CPU.update_n(CPU.X);
+      X = cpu_read(M);
+      update_z(X);
+      update_n(X);
       break;
       
     // LDY
@@ -438,25 +438,25 @@ CPU.op = function(){
     case 0xac: // LDY a
     case 0xb4: // LDY d,X
     case 0xbc: // LDY a,X
-      CPU.Y = CPU.read(M);
-      CPU.update_z(CPU.Y);
-      CPU.update_n(CPU.Y);
+      Y = cpu_read(M);
+      update_z(Y);
+      update_n(Y);
       break;
       
     // LSR A
     // Right shift A after putting bit 0 in C. Bit 7 = 0. Z: set if result = 0, cleared otherwise. N: bit 7 of result
     case 0x4a: // LSR = LSR A
-      var value = CPU.A;
+      var value = A;
       if((value & 0b1) == 1){
-        CPU.set_c();
+        set_c();
       }
       else {
-        CPU.clear_c();
+        clear_c();
       }
       value = value >> 1;
-      CPU.update_z(value);
-      CPU.update_n(value);
-      CPU.A = value;
+      update_z(value);
+      update_n(value);
+      A = value;
       break;
     
     // LSR
@@ -465,98 +465,98 @@ CPU.op = function(){
     case 0x4e: // LSR a
     case 0x56: // LSR d,X
     case 0x5e: // LSR a,X
-      var value = CPU.read(M);
+      var value = cpu_read(M);
       if((value & 0b1) == 1){
-        CPU.set_c();
+        set_c();
       }
       else {
-        CPU.clear_c();
+        clear_c();
       }
       value = value >> 1;
-      CPU.update_z(value);
-      CPU.update_n(value);
-      CPU.write(M, value);
+      update_z(value);
+      update_n(value);
+      write(M, value);
       cycles += 2;
       break;
       
     // PHA
     // Push A on the stack
     case 0x48: // PHA
-      CPU.write(CPU.S + 0x100, CPU.A);
-      CPU.S = (CPU.S - 1) & 0xFF;
-      CPU.draw_internal_ram(CPU.S + 0x100);
+      write(S + 0x100, A);
+      S = (S - 1) & 0xFF;
+      draw_internal_ram(S + 0x100);
       cycles++;
       break;
       
     // PLA
     // Pull A from the stack. Z: set if A = 0, cleared otherwise. N: bit 7 of A
     case 0x68:
-      CPU.S = (CPU.S + 1) & 0xFF;
-      CPU.A = CPU.read(CPU.S + 0x100);
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      S = (S + 1) & 0xFF;
+      A = cpu_read(S + 0x100);
+      update_z(A);
+      update_n(A);
       cycles += 2;
       break;
     
     // ROL
     // Save C in a var. Put bit 7 of operand in C. Left shift operand. Bit 0 = saved C. Z: set if operand is 0, 1 otherwise. N: bit 7 of operand
     case 0x2a: // ROL A
-      var tmp = CPU.C;
-      CPU.C = CPU.A >> 7;
-      CPU.A = (CPU.A << 1) & 0xFF;
-      CPU.A |= tmp;
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      var tmp = C;
+      C = A >> 7;
+      A = (A << 1) & 0xFF;
+      A |= tmp;
+      update_z(A);
+      update_n(A);
       break;
 
     case 0x26: // ROL d
     case 0x2e: // ROL a
     case 0x36: // ROL d,X
     case 0x3e: // ROL a,X
-      var tmp = CPU.C;
-      var value = CPU.read(M);
-      CPU.C = value >> 7;
+      var tmp = C;
+      var value = cpu_read(M);
+      C = value >> 7;
       value = (value << 1) & 0xFF;
       value |= tmp;
-      CPU.update_z(value);
-      CPU.update_n(value);
-      CPU.write(M, value);
+      update_z(value);
+      update_n(value);
+      write(M, value);
       cycles += 2;
       break;
     
     // ROR
     // Save C in a var. Put bit 0 of operand in C. Right shift operand. Bit 7 = saved C. Z: set if operand is 0, 1 otherwise. N: bit 7 of operand
     case 0x6a: // ROR A
-      var tmp = CPU.C;
-      CPU.C = CPU.A & 0b1;
-      CPU.A = CPU.A >> 1;
-      CPU.A |= (tmp << 7);
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      var tmp = C;
+      C = A & 0b1;
+      A = A >> 1;
+      A |= (tmp << 7);
+      update_z(A);
+      update_n(A);
       break;
       
     case 0x66: // ROR d
     case 0x6e: // ROR a
     case 0x76: // ROR d,X
     case 0x7e: // ROR a,X
-      var tmp = CPU.C;
-      var value = CPU.read(M);
-      CPU.C = value & 0b1;
+      var tmp = C;
+      var value = cpu_read(M);
+      C = value & 0b1;
       value = value >> 1;
       value |= (tmp << 7);
-      CPU.update_z(value);
-      CPU.update_n(value);
-      CPU.write(M, value);
+      update_z(value);
+      update_n(value);
+      write(M, value);
       cycles += 2;
       break;
     
     // RTS
     // Return from subroutine: pull PC - 1 from the stack (the lowest byte, then the highest byte, see JSR)
     case 0x60: // RTS
-      CPU.S = (CPU.S + 1) & 0xFF;
-      CPU.PC = CPU.read(CPU.S + 0x100);
-      CPU.S = (CPU.S + 1) & 0xFF;
-      CPU.PC = (CPU.read(CPU.S + 0x100) << 8) + CPU.PC;
+      S = (S + 1) & 0xFF;
+      PC = cpu_read(S + 0x100);
+      S = (S + 1) & 0xFF;
+      PC = (cpu_read(S + 0x100) << 8) + PC;
       extra_bytes = 0;
       cycles += 4;
       break;
@@ -564,7 +564,7 @@ CPU.op = function(){
     // SEI
     // Set interrupt disable flag
     case 0x78: // SEI
-      CPU.set_i();
+      set_i();
       break;
 
     // STA
@@ -576,7 +576,7 @@ CPU.op = function(){
     case 0x95: // STA d,X
     case 0x99: // STA a,Y
     case 0x9d: // STA a,X
-      CPU.write(M, CPU.A);
+      write(M, A);
       break;
       
     // STY
@@ -584,45 +584,45 @@ CPU.op = function(){
     case 0x84: // STY d
     case 0x8c: // STY a
     case 0x94: // STY d,X
-      CPU.write(M, CPU.Y);
+      write(M, Y);
       break;
       
     // TAX
     // Copy A in X. Z: set if X = 0, cleared otherwise. N: bit 7 of X
     case 0xaa: // TAX
-      CPU.X = CPU.A;
-      CPU.update_z(CPU.X);
-      CPU.update_n(CPU.X);
+      X = A;
+      update_z(X);
+      update_n(X);
       break;
       
     // TAY
     // Copy A in Y. Z: set if Y = 0, cleared otherwise. N: bit 7 of Y
     case 0xa8: // TAY
-      CPU.Y = CPU.A;
-      CPU.update_z(CPU.Y);
-      CPU.update_n(CPU.Y);
+      Y = A;
+      update_z(Y);
+      update_n(Y);
       break;
     
     // TXA
     // Copy X in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A
     case 0x8a: // TXA
-      CPU.A = CPU.X;
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      A = X;
+      update_z(A);
+      update_n(A);
       break;
     
     // TYA
     // Copy Y in A. Z: set if A = 0, cleared otherwise. N: bit 7 of A
     case 0x98: // TYA
-      CPU.A = CPU.Y;
-      CPU.update_z(CPU.A);
-      CPU.update_n(CPU.A);
+      A = Y;
+      update_z(A);
+      update_n(A);
       break;
     
     // TXS
     // Copy X in S
     case 0x9A: // TXS
-      CPU.S = CPU.X;
+      S = X;
       break;
       
     default:
@@ -630,15 +630,15 @@ CPU.op = function(){
   }
   
   // Update PC
-  CPU.PC = CPU.PC + extra_bytes + 1;
+  PC = PC + extra_bytes + 1;
   
   // Ticks
   // The PPU and APU tick 3 times during each CPU tick
-  CPU.cycles += cycles;
+  cycles += cycles;
   for(var i = 0; i < cycles; i++){
-    PPU.tick();
-    PPU.tick();
-    PPU.tick();
+    ppu_tick();
+    ppu_tick();
+    ppu_tick();
     /*
     APU.tick();
     APU.tick();
@@ -647,137 +647,137 @@ CPU.op = function(){
   }
   
   if(debug){
-    CPU.update_ui();
+    update_ui();
   }
 }
 
 
 // Opcode helpers
-CPU.set_i = function(){
+set_i = function(){
   
   // Set I
-  CPU.I = 1;
+  I = 1;
   
   // Update P
-  CPU.P = CPU.P | 0b100;
+  P = P | 0b100;
 }
 
-CPU.clear_d = function(){
+clear_d = function(){
   
   // clear D
-  CPU.D = 0;
+  D = 0;
   
   // Update P
-  CPU.P = CPU.P & 0b11110111;
+  P = P & 0b11110111;
 }
 
-CPU.update_z = function(value){
+update_z = function(value){
   
   // Test
   if(value === 0){
     
     // Set Z
-    CPU.Z = 1;
+    Z = 1;
     
     // Update P
-    CPU.P = CPU.P | 0b00000010;
+    P = P | 0b00000010;
   }
   
   else {
     
     // Clear Z
-    CPU.Z = 0;
+    Z = 0;
     
     // Update P
-    CPU.P = CPU.P & 0b11111101;
+    P = P & 0b11111101;
   }
 }
 
-CPU.update_n = function(value){
+update_n = function(value){
   
   // Set N
-  CPU.N = (value >> 7) & 0b1;
+  N = (value >> 7) & 0b1;
   
   // Update P
-  if(CPU.N === 1){
-    CPU.P = (CPU.P | 0b10000000);
+  if(N === 1){
+    P = (P | 0b10000000);
   }
   else {
-    CPU.P = (CPU.P & 0b01111111);
+    P = (P & 0b01111111);
   }
 }
 
 /*
-CPU.set_c_borrow = function(value){
+set_c_borrow = function(value){
   
   // Set C
-  CPU.C = value >= 0 ? 1 : 0;
+  C = value >= 0 ? 1 : 0;
   
   // Update P
-  if(CPU.C === 1){
-    CPU.P = (CPU.P | 0b00000001);
+  if(C === 1){
+    P = (P | 0b00000001);
   }
   else {
-    CPU.P = (CPU.P & 0b11111110);
+    P = (P & 0b11111110);
   }
   
   // UI
-  c_info.innerHTML = CPU.C;
+  c_info.innerHTML = C;
 }
 
-CPU.set_c_carry = function(value){
+set_c_carry = function(value){
   
   // Set C
-  CPU.C = value >= 0 ? 0 : 1;
+  C = value >= 0 ? 0 : 1;
   
   // Update P
-  if(CPU.C === 1){
-    CPU.P = (CPU.P | 0b00000001);
+  if(C === 1){
+    P = (P | 0b00000001);
   }
   else {
-    CPU.P = (CPU.P & 0b11111110);
+    P = (P & 0b11111110);
   }
   
   // UI
-  c_info.innerHTML = CPU.C;
+  c_info.innerHTML = C;
 }
 */
 
-CPU.set_c = function(){
+set_c = function(){
   
   // Set C
-  CPU.C = 0;
+  C = 0;
   
   // Update P
-  CPU.P = (CPU.P | 0b00000001);
+  P = (P | 0b00000001);
 }
 
-CPU.clear_c = function(){
+clear_c = function(){
   
   // Clear C
-  CPU.C = 0;
+  C = 0;
   
   // Update P
-  CPU.P = (CPU.P & 0b11111110);
+  P = (P & 0b11111110);
 }
 
 // UI update
-CPU.update_ui = function(){
-  a_info.innerHTML = tools.format2(CPU.A);
-  x_info.innerHTML = tools.format2(CPU.X);
-  y_info.innerHTML = tools.format2(CPU.Y);
-  pc_info.innerHTML = tools.format4(CPU.PC);
-  s_info.innerHTML = tools.format2(CPU.S);
-  c_info.innerHTML = CPU.C;
-  z_info.innerHTML = CPU.Z;
-  i_info.innerHTML = CPU.I;
-  d_info.innerHTML = CPU.D;
-  b_info.innerHTML = CPU.B;
-  v_info.innerHTML = CPU.V;
-  n_info.innerHTML = CPU.N;
-  cpu_cycles_info.innerHTML = CPU.cycles;
-  CPU.draw_prg_rom_low_page(CPU.PC);
-  CPU.draw_prg_rom_high_page(CPU.PC);
+update_ui = function(){
+  a_info.innerHTML = tools.format2(A);
+  x_info.innerHTML = tools.format2(X);
+  y_info.innerHTML = tools.format2(Y);
+  pc_info.innerHTML = tools.format4(PC);
+  s_info.innerHTML = tools.format2(S);
+  c_info.innerHTML = C;
+  z_info.innerHTML = Z;
+  i_info.innerHTML = I;
+  d_info.innerHTML = D;
+  b_info.innerHTML = B;
+  v_info.innerHTML = V;
+  n_info.innerHTML = N;
+  cpu_cycles_info.innerHTML = cycles;
+  draw_prg_rom_low_page(PC);
+  draw_prg_rom_high_page(PC);
 }
 
-// for(i in CPU.opcodes)if(/EOR/.test(CPU.opcodes[i]))console.log("case 0x" + (+i).toString(16) + ": // " + CPU.opcodes[i])
+// for(i in opcodes)if(/EOR/.test(opcodes[i]))console.log("case 0x" + (+i).toString(16) + ": // " + opcodes[i])
