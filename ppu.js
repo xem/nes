@@ -20,6 +20,27 @@ PPU = {
   // Canvas
   screen_ctx: null,
   
+  // Registers bits
+  PPUCTRL_nametable: 0,
+  PPUCTRL_increment_mode: 0,
+  PPUCTRL_sprite_tile: 0,
+  PPUCTRL_background_tile: 0,
+  PPUCTRL_sprite_height: 0,
+  PPUCTRL_ppu_master: 0,
+  PPUCTRL_nmi_enable: 0,
+  
+  PPUMASK_greyscale: 0,
+  PPUMASK_enable_left_bckground_column: 0,
+  PPUMASK_enable_left_sprite_column: 0,
+  PPUMASK_background_enable: 0,
+  PPUMASK_sprite_enable: 0,
+  PPUMASK_color_emphasis: 0,
+  
+  PPUSTATUS_last_write_low_byte: 0,
+  PPUSTATUS_sprite_overflow: 0,
+  PPUSTATUS_sprite_0_hit: 0,
+  PPUSTATUS_vblank: 0,
+  
 };
 
 // Init CPU memory, flags, UI
@@ -226,13 +247,15 @@ PPU.tick = function(){
   // Set bit 7 of CPU $2002 after scanline 241
   if(PPU.y == 242 && PPU.x == 0){
     CPU.write(0x2002, CPU.read(0x2002) | 0b10000000);
+    PPU.PPUSTATUS_vblank = 1;
   }
   
-  // Pre-render line (261 on NTSC, 311 on PAL)
+  // End of VBlank, pre-render line (261 on NTSC, 311 on PAL)
   // Clear bit 7 of CPU $2002
-  // Increment frame counter (for debugger only)
+  // Increment frame counter (for debugger only, the console doesn't know which frame it is)
   if(PPU.x == 0 && ((!gamepak.PAL && PPU.y == 261) || (gamepak.PAL && PPU.y == 311))){
     CPU.write(0x2002, CPU.read(0x2002) & 0b01111111);
+    PPU.PPUSTATUS_vblank = 0;
     PPU.frame++;
     PPU.y = 0;
     frame_info.innerHTML = PPU.frame;

@@ -551,7 +551,7 @@ This register controls PPU operations.
 | 3   | Sprite tile select, for 8x8 sprites only ($0000/$1000)   |
 | 4   | Background tile select ($0000/$1000)                     |
 | 5   | Sprite height (8x8/8x16)                                 |
-| 6   | PPU master/slave (always 0 on stock NES)                 |
+| 6   | PPU master/slave (always 0 = master on stock NES)        |
 | 7   | NMI enable (generates NMI at the start of VBlank)        |
 +-----+----------------------------------------------------------+
 
@@ -562,7 +562,7 @@ Controls the rendering of sprites and backgrounds, as well as color effects.
 | Bit | Use                                             |
 +-----+-------------------------------------------------+
 | 0   | Greyscale (all colors are ANDed with $30)       |
-| 1   | Enable left background                          |
+| 1   | Enable left background column                   |
 | 2   | Enable left sprite column                       |
 | 3   | Background enable                               |
 | 4   | Sprite enable                                   |

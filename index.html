@@ -11,7 +11,7 @@ td { padding: 10px 10px 0; }
 table table { width: 100%; }
 table table td { padding: 2px; }
 pre { margin: 0; font-family: courier, monospace; }
-button { padding: 1px 9px; border: 1px solid #888; background: #ddd; cursor: pointer; }
+button { padding: 1px 3px; border: 1px solid #888; background: #ddd; cursor: pointer; }
 input { width: 25px; padding: 1px 2px; border: 1px solid #888 }
 canvas { vertical-align: middle; background: #000; }
 .list { height: 138px; overflow: hidden; font-family: courier, monospace; }
@@ -175,14 +175,15 @@ canvas { vertical-align: middle; background: #000; }
         </table>
         <div style="margin-top:5px">
           <button onclick="CPU.op()">step</button>
-          <button onclick="CPU.play()">play</button> up to @ <input id=breakpoint value=f50c> <!-- BREAKPOINT -->
-          <button onclick="clearInterval(CPU.loop)">pause</button>
           <button onclick="for(x10=10;x10--;)CPU.op()">x10</button>
+          <button onclick="CPU.play()">play</button> &rarr; @ <input id=breakpoint value=f50c> / <button onclick="CPU.play(1)">next VBlank</button>
+          <button onclick="clearInterval(CPU.loop)">pause</button>
+          
           <!--button disabled>reset</button-->
           <!--button disabled>fullscreen</button>-->
         </div>
         <div style="margin:2px 0;font-family:monospace">
-          Frame <span id=frame_info>0000</span> CPU <span id=cpu_cycles_info>0000</span> PPU <span id=screen_x_info>000</span>:<span id=screen_y_info>000</span>
+          Frame <span id=frame_info>0</span> / CPU cycle <span id=cpu_cycles_info>0000</span> / PPU <span id=screen_x_info>000</span>:<span id=screen_y_info>000</span>
         </div>
       </div>
   <tr>

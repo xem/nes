@@ -161,18 +161,20 @@ CPU.read_write = function(address, signed, value){
   // CPU memory
   if(address < 0x4020){
     
-    // $0000-$1fff: internal RAM & mirrors
-    if(address < 0x2000){
-      address %= 0x800;
-    }
-    
-    // $2000-$3FFF: I/O & mirrors
-    else if(address < 0x4000){
-      address = ((address - 0x2000) % 8) + 0x2000;
+    // Decode address
 
-      // Focus
-      tools.focus("cpu_byte_" + address);
-    }
+      // $0000-$1fff: internal RAM & mirrors
+      if(address < 0x2000){
+        address %= 0x800;
+      }
+      
+      // $2000-$3FFF: I/O & mirrors
+      else if(address < 0x4000){
+        address = ((address - 0x2000) % 8) + 0x2000;
+
+        // Focus
+        tools.focus("cpu_byte_" + address);
+      }
     
     
     // Write
@@ -227,27 +229,16 @@ CPU.read_write = function(address, signed, value){
     
     // $7000-$71FF: trainer
     else if(CPU.trainer_bank && address >= 0x7000 && address < 0x7200){
-      
-      // Read-only
-      if(!write){
-        
-        if(signed){
-          return gamepak.trainer_signed[address - 0x7000];
-        }
-        else {
-          return gamepak.trainer[address - 0x7000];
-        }
-      }
-      
+      // Not implemented
     }
     
     // $6000-$7FFF: PRG-RAM
     else if(address < 0x8000){
-      
+      // TODO
     }
     
     // $8000-$BFFF: PRG-ROM, low page
-    // TODO: bankswitch.
+    // TODO: bankswitch
     // Default: bank 0
     
     else {
@@ -272,7 +263,7 @@ CPU.read_write = function(address, signed, value){
       }
     
       // $C000-$FFFF: PRG-ROM, high page
-      // TODO: bankswitch.
+      // TODO: bankswitch
       // Default: bank 1
       else {
           
@@ -440,16 +431,27 @@ CPU.draw_prg_ram = function(address){
   prg_ram_info.innerHTML = html;
 }
 
-// Play until PC reaches the value in the breakpoint input (if any)
-CPU.play = function(){
+// Play until PC reaches the value in the breakpoint input (if any) or the next VBlank (if any), or do an infinite loop.
+CPU.play = function(stop_at_next_vblank){
   debug = false;
   var breakpoint_address = breakpoint.value ? parseInt(breakpoint.value, 16) : -1;
+  
+  // If we want to reach next VBlank while already in VBlank, play until the next frame starts
+  for(var i = 0; i < 2000; i++){
+    console.log(i);
+    if(stop_at_next_vblank && PPU.PPUSTATUS_vblank){
+      CPU.op();
+    }
+    else {
+      break;
+    }
+  }
+  
   CPU.loop = setInterval(function(){
     for(var i = 0; i < 2000; i++){
-      if(CPU.PC != breakpoint_address){
-        CPU.op();
-      }
-      else {
+      
+      // Check if break condition is reached, stop emulator
+      if((!stop_at_next_vblank && CPU.PC == breakpoint_address) || (stop_at_next_vblank && PPU.PPUSTATUS_vblank)){
         clearInterval(CPU.loop);
         debug = true;
         CPU.update_ui();
@@ -459,6 +461,11 @@ CPU.play = function(){
         PPU.screen_ctx.fillStyle = "red";
         PPU.screen_ctx.fillRect(PPU.x, PPU.y, 2, 2);
         CPU.draw_internal_ram(CPU.S + 0x100)
+      }
+      
+      // Play
+      else {
+        CPU.op();
       }
     }
   },9)

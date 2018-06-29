@@ -17,6 +17,14 @@ tools.format4 = function(n){
   return "error";
 }
 
+// Format a number on 8 binary numbers (1B)
+tools.format8 = function(n){
+  if(typeof n !== "undefined"){
+    return ("0000000" + n.toString(2).toUpperCase()).slice(-8);
+  }
+  return "error";
+}
+
 // Focus a list item
 tools.focus = function(id){
   if(!debug) return;
