@@ -2,7 +2,7 @@
 <p>
 <table border>
 <tr><th width=500>Code <th width=256>Graphics
-<tr><td><pre id=code><td style=vertical-align:top><canvas id=a width=256 height=1024></canvas>
+<tr><td><pre id=code><td style=vertical-align:top><canvas id=a width=256 height=2048></canvas>
 </table>
 <br>
 <script>
@@ -102,7 +102,7 @@ s = z => {
   code.innerHTML = h.toUpperCase().replace(/, /g, ",");
   
   // Prepare canvas
-  a.height = chr * 1024;
+  a.height = chr * 2048;
 
   // Read tile (2 bytes)
   tile = 0;
